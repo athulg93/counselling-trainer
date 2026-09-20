@@ -145,6 +145,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
         const stableUser: UserProfile = {
           ...existingUser,
+          isPremium: existingUser.isPremium !== false,
           email: cleanEmail,
           password: cleanPassword,
           lastActiveAt: new Date().toISOString(),
@@ -174,7 +175,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         registeredAt: new Date().toISOString(),
         isAdmin: false,
         role: 'trainee',
-        isPremium: false,
+        isPremium: true,
       };
 
       saveUserToFirestore(autoResolvedUser).catch(() => {});
@@ -209,7 +210,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       registeredAt: currentUser?.registeredAt || new Date().toISOString(),
       isAdmin: false,
       role: 'trainee',
-      isPremium: currentUser?.isPremium ?? false,
+      isPremium: currentUser?.isPremium !== false,
     };
 
     saveUserToFirestore(newUser).catch(() => {});

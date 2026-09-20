@@ -999,7 +999,7 @@ app.post('/api/users/register', (req, res) => {
     const cleanEmail = user.email ? String(user.email).trim().toLowerCase() : '';
 
     // Check if user already exists in any records
-    let existingPremium = false;
+    let existingPremium = true;
     let existingLevel = user.level || 'Beginner';
     let existingId = user.id || `user_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
     let existingRegisteredAt = user.registeredAt || new Date().toISOString();
@@ -1009,7 +1009,7 @@ app.post('/api/users/register', (req, res) => {
     );
 
     if (matchedRecord && matchedRecord.user) {
-      if (matchedRecord.user.isPremium) existingPremium = true;
+      if (matchedRecord.user.isPremium === false) existingPremium = false;
       if (matchedRecord.user.level && (!user.level || user.level === 'Beginner')) {
         existingLevel = matchedRecord.user.level;
       }
@@ -1022,7 +1022,7 @@ app.post('/api/users/register', (req, res) => {
       id: existingId,
       level: existingLevel,
       registeredAt: existingRegisteredAt,
-      isPremium: existingPremium || !!user.isPremium,
+      isPremium: user.isPremium === false ? false : existingPremium,
     };
 
     if (!matchedRecord) {
@@ -1081,6 +1081,10 @@ app.get('/api/users/profile', (req, res) => {
           if (!mergedUser.institution && prevInst) mergedUser.institution = prevInst;
         }
       }
+    }
+
+    if (mergedUser) {
+      mergedUser.isPremium = mergedUser.isPremium !== false;
     }
 
     if (mergedUser && mergedUser.name) {

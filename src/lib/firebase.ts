@@ -75,8 +75,8 @@ export async function saveUserToFirestore(user: UserProfile): Promise<void> {
       registeredAt: user.registeredAt || new Date().toISOString(),
       isAdmin: Boolean(user.isAdmin),
       role: user.role || (user.isAdmin ? 'admin' : 'trainee'),
-      isPremium: Boolean(user.isPremium),
-      premiumGrantedAt: user.premiumGrantedAt || null,
+      isPremium: user.isPremium !== false,
+      premiumGrantedAt: user.premiumGrantedAt || new Date().toISOString(),
       lastActiveAt: new Date().toISOString(),
       updatedAt: serverTimestamp(),
     };
@@ -106,20 +106,23 @@ export async function getUserFromFirestore(emailOrId: string): Promise<UserProfi
     // 1. Try raw email document key (e.g. alex_smith_gmail_com)
     let snap = await getDoc(doc(db, 'users', rawKey));
     if (snap.exists() && snap.data()?.name && snap.data().name.trim().length > 0) {
-      return snap.data() as UserProfile;
+      const data = snap.data() as UserProfile;
+      return { ...data, isPremium: data.isPremium !== false };
     }
 
     // 2. Try prefixed document key (e.g. user_alex_smith_gmail_com)
     snap = await getDoc(doc(db, 'users', prefixedKey));
     if (snap.exists() && snap.data()?.name && snap.data().name.trim().length > 0) {
-      return snap.data() as UserProfile;
+      const data = snap.data() as UserProfile;
+      return { ...data, isPremium: data.isPremium !== false };
     }
 
     // 3. Try exact input key if passed as ID
     if (cleanInput !== rawKey && cleanInput !== prefixedKey) {
       snap = await getDoc(doc(db, 'users', cleanInput));
       if (snap.exists() && snap.data()?.name && snap.data().name.trim().length > 0) {
-        return snap.data() as UserProfile;
+        const data = snap.data() as UserProfile;
+        return { ...data, isPremium: data.isPremium !== false };
       }
     }
 
@@ -131,7 +134,7 @@ export async function getUserFromFirestore(emailOrId: string): Promise<UserProfi
       if (!querySnap.empty) {
         const data = querySnap.docs[0].data() as UserProfile;
         if (data?.name && data.name.trim().length > 0) {
-          return data;
+          return { ...data, isPremium: data.isPremium !== false };
         }
       }
     }
