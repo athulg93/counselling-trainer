@@ -1062,21 +1062,32 @@ app.get('/api/users/profile', (req, res) => {
     const records = readDb();
     let mergedUser: any = null;
 
-    // Scan backwards from oldest to newest so newest updates take precedence
-    for (const r of [...records].reverse()) {
+    // Scan records to find user registration or profile data
+    for (const r of records) {
       if (r.user?.email && r.user.email.toLowerCase() === email) {
-        mergedUser = {
-          ...(mergedUser || {}),
-          ...r.user,
-        };
+        if (!mergedUser) {
+          mergedUser = { ...r.user };
+        } else {
+          // Merge fields safely, preserving existing non-empty name and password
+          const prevName = mergedUser.name;
+          const prevPassword = mergedUser.password;
+          const prevInst = mergedUser.institution;
+          mergedUser = {
+            ...mergedUser,
+            ...r.user,
+          };
+          if (!mergedUser.name && prevName) mergedUser.name = prevName;
+          if (!mergedUser.password && prevPassword) mergedUser.password = prevPassword;
+          if (!mergedUser.institution && prevInst) mergedUser.institution = prevInst;
+        }
       }
     }
 
-    if (mergedUser) {
+    if (mergedUser && mergedUser.name) {
       return res.json({ user: mergedUser });
     }
 
-    res.json({ user: null });
+    res.json({ user: mergedUser || null });
   } catch (error: any) {
     res.status(500).json({ error: 'Failed to query user profile' });
   }

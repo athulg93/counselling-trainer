@@ -92,11 +92,21 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
     setIsCheckingAccount(true);
 
     try {
-      // 1. Try fetching existing user profile from Firestore or local backend
+      // 1. Try fetching existing user profile from localStorage, state, Firestore, or backend
       let existingUser: UserProfile | null = null;
 
-      // Check current user if matches
-      if (currentUser?.email?.toLowerCase() === cleanEmail && currentUser?.name) {
+      // Check current state or localStorage first
+      try {
+        const savedLocal = localStorage.getItem('counseling_trainer_user');
+        if (savedLocal) {
+          const parsed = JSON.parse(savedLocal);
+          if (parsed?.email?.toLowerCase() === cleanEmail && parsed?.name && parsed.name.trim().length > 0) {
+            existingUser = parsed;
+          }
+        }
+      } catch {}
+
+      if (!existingUser && currentUser?.email?.toLowerCase() === cleanEmail && currentUser?.name) {
         existingUser = currentUser;
       }
 
@@ -115,7 +125,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
           const res = await fetch(`/api/users/profile?email=${encodeURIComponent(cleanEmail)}`);
           if (res.ok) {
             const data = await res.json();
-            if (data?.user?.name) {
+            if (data?.user?.name && data.user.name.trim().length > 0) {
               existingUser = data.user;
             }
           }
@@ -142,13 +152,34 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
 
         // Update in background
         saveUserToFirestore(stableUser).catch(() => {});
+        setIsCheckingAccount(false);
         onLogin(stableUser);
         return;
       }
 
-      // 3. User does not exist or has no name registered yet -> Prompt for Name
+      // 3. Fallback: If user enters email and name input was prefilled or can be derived from email handle
+      const fallbackName = name.trim() || (() => {
+        const localPart = cleanEmail.split('@')[0] || 'Practitioner';
+        const parts = localPart.replace(/[._\-0-9]+/g, ' ').trim().split(/\s+/).filter(Boolean);
+        if (parts.length === 0) return 'Practitioner';
+        return parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(' ');
+      })();
+
+      const autoResolvedUser: UserProfile = {
+        id: `user_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+        name: fallbackName,
+        email: cleanEmail,
+        password: cleanPassword,
+        level: 'Beginner',
+        registeredAt: new Date().toISOString(),
+        isAdmin: false,
+        role: 'trainee',
+        isPremium: false,
+      };
+
+      saveUserToFirestore(autoResolvedUser).catch(() => {});
       setIsCheckingAccount(false);
-      setTraineeStep('new_user_name');
+      onLogin(autoResolvedUser);
     } catch (err: any) {
       console.error('Login check error:', err);
       setIsCheckingAccount(false);

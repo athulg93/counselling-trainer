@@ -1,38 +1,5 @@
 [
   {
-    "id": "audit_del_1789879395899",
-    "type": "audit_event",
-    "eventType": "user_deleted_by_admin",
-    "timestamp": "2026-09-20T04:43:15.899Z",
-    "user": {
-      "email": "test1234@gmail.com",
-      "name": "Deleted User"
-    },
-    "note": "User record and all associated sessions/logs for test1234@gmail.com were deleted by Administrator Athul Govind"
-  },
-  {
-    "id": "audit_del_1789879387445",
-    "type": "audit_event",
-    "eventType": "user_deleted_by_admin",
-    "timestamp": "2026-09-20T04:43:07.445Z",
-    "user": {
-      "email": "google@gmail.com",
-      "name": "Deleted User"
-    },
-    "note": "User record and all associated sessions/logs for google@gmail.com were deleted by Administrator Athul Govind"
-  },
-  {
-    "id": "audit_del_1789879384369",
-    "type": "audit_event",
-    "eventType": "user_deleted_by_admin",
-    "timestamp": "2026-09-20T04:43:04.369Z",
-    "user": {
-      "email": "test123@gmail.com",
-      "name": "Deleted User"
-    },
-    "note": "User record and all associated sessions/logs for test123@gmail.com were deleted by Administrator Athul Govind"
-  },
-  {
     "id": "audit_perm_1789805393604",
     "type": "audit_event",
     "eventType": "premium_revoked",

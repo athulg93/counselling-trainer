@@ -61,27 +61,33 @@ export function getDb(): Firestore {
 export async function saveUserToFirestore(user: UserProfile): Promise<void> {
   try {
     const db = getDb();
-    const cleanId = user.id || user.email.toLowerCase().replace(/[^a-z0-9]/g, '_');
-    const userRef = doc(db, 'users', cleanId);
-    await setDoc(
-      userRef,
-      {
-        id: user.id || cleanId,
-        name: user.name,
-        email: user.email.toLowerCase().trim(),
-        password: user.password || '',
-        institution: user.institution || '',
-        level: user.level || 'Novice Counselor',
-        registeredAt: user.registeredAt || new Date().toISOString(),
-        isAdmin: Boolean(user.isAdmin),
-        role: user.role || (user.isAdmin ? 'admin' : 'trainee'),
-        isPremium: Boolean(user.isPremium),
-        premiumGrantedAt: user.premiumGrantedAt || null,
-        lastActiveAt: new Date().toISOString(),
-        updatedAt: serverTimestamp(),
-      },
-      { merge: true }
-    );
+    const cleanEmail = user.email.toLowerCase().trim();
+    const rawEmailKey = cleanEmail.replace(/[^a-z0-9]/g, '_');
+    const userDocId = user.id || `user_${rawEmailKey}`;
+
+    const payload = {
+      id: userDocId,
+      name: user.name,
+      email: cleanEmail,
+      password: user.password || '',
+      institution: user.institution || '',
+      level: user.level || 'Novice Counselor',
+      registeredAt: user.registeredAt || new Date().toISOString(),
+      isAdmin: Boolean(user.isAdmin),
+      role: user.role || (user.isAdmin ? 'admin' : 'trainee'),
+      isPremium: Boolean(user.isPremium),
+      premiumGrantedAt: user.premiumGrantedAt || null,
+      lastActiveAt: new Date().toISOString(),
+      updatedAt: serverTimestamp(),
+    };
+
+    // Save under primary ID (e.g., user_email)
+    await setDoc(doc(db, 'users', userDocId), payload, { merge: true });
+
+    // Also alias under raw email key if different to guarantee zero-mismatch lookups
+    if (userDocId !== rawEmailKey && rawEmailKey.length > 0) {
+      await setDoc(doc(db, 'users', rawEmailKey), payload, { merge: true });
+    }
   } catch (error) {
     console.error('Firestore saveUser error:', error);
   }
@@ -93,20 +99,43 @@ export async function saveUserToFirestore(user: UserProfile): Promise<void> {
 export async function getUserFromFirestore(emailOrId: string): Promise<UserProfile | null> {
   try {
     const db = getDb();
-    const cleanId = emailOrId.toLowerCase().replace(/[^a-z0-9]/g, '_');
-    const userRef = doc(db, 'users', cleanId);
-    const snap = await getDoc(userRef);
-    if (snap.exists()) {
+    const cleanInput = emailOrId.toLowerCase().trim();
+    const rawKey = cleanInput.replace(/[^a-z0-9]/g, '_');
+    const prefixedKey = `user_${rawKey}`;
+
+    // 1. Try raw email document key (e.g. alex_smith_gmail_com)
+    let snap = await getDoc(doc(db, 'users', rawKey));
+    if (snap.exists() && snap.data()?.name && snap.data().name.trim().length > 0) {
       return snap.data() as UserProfile;
     }
 
-    // Try querying by email field
-    const usersCol = collection(db, 'users');
-    const q = query(usersCol, where('email', '==', emailOrId.toLowerCase().trim()), limit(1));
-    const querySnap = await getDocs(q);
-    if (!querySnap.empty) {
-      return querySnap.docs[0].data() as UserProfile;
+    // 2. Try prefixed document key (e.g. user_alex_smith_gmail_com)
+    snap = await getDoc(doc(db, 'users', prefixedKey));
+    if (snap.exists() && snap.data()?.name && snap.data().name.trim().length > 0) {
+      return snap.data() as UserProfile;
     }
+
+    // 3. Try exact input key if passed as ID
+    if (cleanInput !== rawKey && cleanInput !== prefixedKey) {
+      snap = await getDoc(doc(db, 'users', cleanInput));
+      if (snap.exists() && snap.data()?.name && snap.data().name.trim().length > 0) {
+        return snap.data() as UserProfile;
+      }
+    }
+
+    // 4. Fallback: Query by email field
+    if (cleanInput.includes('@')) {
+      const usersCol = collection(db, 'users');
+      const q = query(usersCol, where('email', '==', cleanInput), limit(1));
+      const querySnap = await getDocs(q);
+      if (!querySnap.empty) {
+        const data = querySnap.docs[0].data() as UserProfile;
+        if (data?.name && data.name.trim().length > 0) {
+          return data;
+        }
+      }
+    }
+
     return null;
   } catch (error) {
     console.error('Firestore getUser error:', error);
