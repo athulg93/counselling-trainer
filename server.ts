@@ -92,24 +92,20 @@ function calculateDeterministicStats(
 // ----------------------------------------------------
 // Model Configuration & Robust Fallback Engine
 // ----------------------------------------------------
-// Model Priority: gemini-3.1-flash-lite and gemini-flash-latest provide instant response times
+// Model Priority: gemini-2.5-flash, gemini-2.0-flash, and gemini-1.5-flash provide instant response times
 // and maximum resilience against temporary high-demand spikes (503) on experimental models.
-// Agent 1 uses token-efficient fast conversational models across 5 fallback candidates:
+// Agent 1 uses token-efficient fast conversational models across 3 fallback candidates:
 const AGENT_1_MODELS = [
-  'gemini-3.1-flash-lite',
-  'gemini-flash-latest',
-  'gemini-3.5-flash-lite',
-  'gemini-3.8-flash',
-  'gemini-3.6-flash',
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
 ];
 
-// Agent 2 uses structured JSON evaluation models across 5 fallback candidates:
+// Agent 2 uses structured JSON evaluation models across 3 fallback candidates:
 const AGENT_2_MODELS = [
-  'gemini-3.1-flash-lite',
-  'gemini-flash-latest',
-  'gemini-3.5-flash-lite',
-  'gemini-3.8-flash',
-  'gemini-3.6-flash',
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
 ];
 
 function extractErrorMessage(err: any): string {
@@ -256,18 +252,21 @@ ${buildAgent1ExemplarGuidance(vignette.track || 'general')}
 
     // Format chat history for Gemini contents
     const contents: any[] = [];
+
+    // Always ensure the contents array starts with a user turn for Gemini API compliance
+    contents.push({
+      role: 'user',
+      parts: [{ text: `[Session Initiation — Counseling encounter with client ${vignette.clientName}]` }],
+    });
+
     if (Array.isArray(history) && history.length > 0) {
       for (const msg of history) {
+        if (!msg || !msg.text) continue;
         contents.push({
           role: msg.role === 'counselor' ? 'user' : 'model',
           parts: [{ text: msg.text }],
         });
       }
-    } else {
-      contents.push({
-        role: 'user',
-        parts: [{ text: `Hello ${vignette.clientName}, thank you for coming in today. How are you feeling right now?` }],
-      });
     }
 
     const response = await callWithModelFallback(ai, AGENT_1_MODELS, {
@@ -280,12 +279,18 @@ ${buildAgent1ExemplarGuidance(vignette.track || 'general')}
       },
     });
 
-    let replyText = response.text?.trim() || `*[Shifts in chair]* I'm just trying to figure out where to start.`;
+    let rawText = '';
+    if (response && typeof response.text === 'string') {
+      rawText = response.text.trim();
+    } else if (response?.candidates?.[0]?.content?.parts?.[0]?.text) {
+      rawText = String(response.candidates[0].content.parts[0].text).trim();
+    }
 
-    // Post-process somatic cues to ensure strictly third-person phrasing (e.g. "rubs back on his neck", never "my neck")
+    let replyText = rawText || `*[Shifts in chair and looks down]* I... I'm just trying to figure out where to start.`;
+
+    // Post-process somatic cues to ensure strictly third-person phrasing
     replyText = replyText.replace(/\*\[(.*?)\]\*/g, (_match: string, cueText: string) => {
       let cleaned = cueText;
-      // Replace "rubs back on my neck" or "rubs back of my neck" with third person
       cleaned = cleaned.replace(/\brubs\s+back\s+(?:on|of)\s+my\s+neck\b/gi, 'rubs back of his neck');
       cleaned = cleaned.replace(/\bmy\s+neck\b/gi, 'his neck');
       cleaned = cleaned.replace(/\bmy\s+shoes\b/gi, 'his shoes');
@@ -294,6 +299,10 @@ ${buildAgent1ExemplarGuidance(vignette.track || 'general')}
       cleaned = cleaned.replace(/\bmy\s+collar\b/gi, 'his collar');
       return `*[${cleaned}]*`;
     });
+
+    if (!replyText || replyText.trim().length === 0) {
+      replyText = `*[Pauses thoughtfully and looks up]* I hear you... I'm just processing what you said.`;
+    }
 
     res.json({ reply: replyText });
   } catch (error: any) {
