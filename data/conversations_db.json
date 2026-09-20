@@ -1,0 +1,463 @@
+[
+  {
+    "id": "reg_user_1789806202454",
+    "timestamp": "2026-09-19T08:23:22.454Z",
+    "user": {
+      "id": "user_1789806202454",
+      "name": "test123",
+      "email": "test1234@gmail.com",
+      "level": "Beginner",
+      "registeredAt": "2026-09-19T08:23:22.454Z",
+      "isAdmin": false,
+      "role": "trainee",
+      "isPremium": false
+    },
+    "type": "user_registration",
+    "messages": []
+  },
+  {
+    "id": "audit_perm_1789805393604",
+    "type": "audit_event",
+    "eventType": "premium_revoked",
+    "timestamp": "2026-09-19T08:09:53.604Z",
+    "user": {
+      "email": "alice@example.com",
+      "name": "Trainee Alice",
+      "level": "Beginner",
+      "isPremium": false
+    },
+    "note": "Premium access revoked by Administrator Athul Govind"
+  },
+  {
+    "id": "audit_perm_1789805390354",
+    "type": "audit_event",
+    "eventType": "premium_granted",
+    "timestamp": "2026-09-19T08:09:50.354Z",
+    "user": {
+      "email": "alice@example.com",
+      "name": "Trainee Alice",
+      "level": "Beginner",
+      "isPremium": false
+    },
+    "note": "Full Premium access granted by Administrator Athul Govind (Unlocks Phase 2 qualitative supervision analysis, distortion diagnosis, and advanced clinical tracks)"
+  },
+  {
+    "id": "reg_test_1",
+    "timestamp": "2026-09-19T08:09:35.711Z",
+    "user": {
+      "id": "test_1",
+      "name": "Trainee Alice",
+      "email": "alice@example.com",
+      "level": "Beginner",
+      "isPremium": false
+    },
+    "type": "user_registration",
+    "messages": []
+  },
+  {
+    "id": "audit_pwd_1789805129852",
+    "type": "audit_event",
+    "eventType": "admin_password_changed",
+    "timestamp": "2026-09-19T08:05:29.851Z",
+    "user": {
+      "email": "athulgovind.1993@gmail.com",
+      "name": "Athul Govind",
+      "isAdmin": true
+    },
+    "note": "Administrator security credentials updated by Athul Govind on 9/19/2026, 8:05:29 AM"
+  },
+  {
+    "id": "audit_pwd_1789805121286",
+    "type": "audit_event",
+    "eventType": "admin_password_changed",
+    "timestamp": "2026-09-19T08:05:21.286Z",
+    "user": {
+      "email": "athulgovind.1993@gmail.com",
+      "name": "Athul Govind",
+      "isAdmin": true
+    },
+    "note": "Administrator security credentials updated by Athul Govind on 9/19/2026, 8:05:21 AM"
+  },
+  {
+    "id": "audit_perm_1789804660989",
+    "type": "audit_event",
+    "eventType": "premium_granted",
+    "timestamp": "2026-09-19T07:57:40.989Z",
+    "user": {
+      "email": "test@gmail.com",
+      "isPremium": true
+    },
+    "note": "Full Premium access granted by Administrator Athul Govind (Unlocks Phase 2 qualitative supervision analysis, distortion diagnosis, and advanced clinical tracks)"
+  },
+  {
+    "id": "audit_perm_1789804637558",
+    "type": "audit_event",
+    "eventType": "premium_revoked",
+    "timestamp": "2026-09-19T07:57:17.558Z",
+    "user": {
+      "email": "test@gmail.com",
+      "isPremium": true,
+      "premiumGrantedAt": "2026-09-19T07:57:40.989Z"
+    },
+    "note": "Premium access revoked by Administrator Athul Govind"
+  },
+  {
+    "id": "reg_admin_athul",
+    "timestamp": "2026-09-19T07:45:33.055Z",
+    "user": {
+      "id": "admin_athul",
+      "name": "Athul Govind",
+      "email": "athulgovind.1993@gmail.com",
+      "role": "admin",
+      "isAdmin": true,
+      "level": "Administrator",
+      "institution": "Executive Clinical Leadership",
+      "registeredAt": "2026-09-19T07:45:33.055Z"
+    },
+    "type": "user_registration",
+    "messages": []
+  },
+  {
+    "id": "session_1789802954321",
+    "timestamp": "2026-09-19T07:29:14.321Z",
+    "user": {
+      "id": "user_1789801880905",
+      "name": "test",
+      "email": "test@gmail.com",
+      "level": "Beginner",
+      "registeredAt": "2026-09-19T07:11:20.905Z",
+      "isPremium": true,
+      "premiumGrantedAt": "2026-09-19T07:57:40.989Z"
+    },
+    "vignette": {
+      "id": "general-novice-2",
+      "title": "Clara W. — The Empty Nest Vacuum",
+      "track": "general",
+      "difficulty": "novice",
+      "clientName": "Clara Wilson"
+    },
+    "config": {
+      "track": "general",
+      "modality": "rogerian",
+      "difficulty": "novice",
+      "mode": "micro",
+      "pacingType": "turns",
+      "durationMinutes": 15,
+      "vignetteSelection": "specific",
+      "selectedVignetteId": "general-novice-2"
+    },
+    "messages": [
+      {
+        "id": "patient-initial",
+        "role": "patient",
+        "text": "*[Sits down and shifts in chair, looking around with mild hesitation]* Hi... I was told I should come in and talk to you today.",
+        "timestamp": "2026-09-19T07:23:10.774Z"
+      },
+      {
+        "id": "counselor-1789802597810",
+        "role": "counselor",
+        "text": "Hello Clara.. how are you today?",
+        "turnNumber": 1,
+        "timestamp": "2026-09-19T07:23:17.810Z"
+      },
+      {
+        "id": "patient-1789802599959",
+        "role": "patient",
+        "text": "*[Folds hands quietly in lap and offers a warm, polite smile]* I'm doing all right, thank you. Well, really, I'm doing fine. Maya—that's my youngest—is just settling into her dorm out in Oregon, and we're just getting used to the three-hour time difference, so things have been a bit of an adjustment at home, but she's just loving her classes so far.",
+        "timestamp": "2026-09-19T07:23:19.959Z"
+      },
+      {
+        "id": "counselor-1789802625290",
+        "role": "counselor",
+        "text": "Ohh thats a major change for her?\nis she loving her college? has she made any friends?",
+        "turnNumber": 2,
+        "timestamp": "2026-09-19T07:23:45.290Z"
+      },
+      {
+        "id": "patient-1789802627294",
+        "role": "patient",
+        "text": "*[Tilts head attentively, her smile softening]* Oh, she really is. She's taking an introductory course in environmental science that she calls fascinating, and she's already joined a campus photography club, which is wonderful because she always had such a good eye for taking pictures around the neighborhood.",
+        "timestamp": "2026-09-19T07:23:47.294Z"
+      },
+      {
+        "id": "counselor-1789802652566",
+        "role": "counselor",
+        "text": "ohh thats so lovely to hear..\nhow often do you talk to her?",
+        "turnNumber": 3,
+        "timestamp": "2026-09-19T07:24:12.566Z"
+      },
+      {
+        "id": "patient-1789802654385",
+        "role": "patient",
+        "text": "*[Fingers tighten slightly around the edge of her cardigan, her smile dipping just a fraction]* We try to check in every evening, or at least a few times a week, though I try not to hover too much because I know she's busy with her new schedule and making friends... *[Pauses, looking down briefly at her folded hands before glancing out the window]* It's just... the evenings are usually when she used to pop into the kitchen while I was making dinner, so the house feels quite a bit different around that time.",
+        "timestamp": "2026-09-19T07:24:14.385Z"
+      },
+      {
+        "id": "counselor-1789802701989",
+        "role": "counselor",
+        "text": "yeah.. thats a major change in lifestyle for you right..\nso many years of your life has been devoted towards her and now its kinda like a new chapter..",
+        "turnNumber": 4,
+        "timestamp": "2026-09-19T07:25:01.989Z"
+      },
+      {
+        "id": "patient-1789802704146",
+        "role": "patient",
+        "text": "*[Takes a slow, hesitant breath and looks down at her hands, her voice dropping to a softer, quieter register]* \n\nIt really is. For twenty-two years, my whole day had a rhythm to it—what time she needed to be up, what we were having for dinner, driving her here and there... and now the calendar is just... blank. *[Gives a small, wistful smile that doesn't quite reach her eyes]* It feels a bit silly to feel so lost just because my daughter grew up and went to college like she was supposed to.",
+        "timestamp": "2026-09-19T07:25:04.146Z"
+      },
+      {
+        "id": "counselor-1789802750589",
+        "role": "counselor",
+        "text": "Its definitely not silly..\nfor your daughter its just the next stage in her life.. but for you its a huge part of your life that has now changed..\nso its okay feel lost..",
+        "turnNumber": 5,
+        "timestamp": "2026-09-19T07:25:50.589Z"
+      },
+      {
+        "id": "patient-1789802752565",
+        "role": "patient",
+        "text": "*[Eyes well up with sudden moisture, and she quickly blinks, looking away toward the window]* \n\n...Thank you for saying that. It's just that everyone around me keeps talking about how wonderful it is that I finally have all this free time to myself, like I should be throwing a party. But nobody really tells you how quiet a house can get when the person who brought all the music and the noise isn't there anymore.",
+        "timestamp": "2026-09-19T07:25:52.565Z"
+      },
+      {
+        "id": "counselor-1789802799019",
+        "role": "counselor",
+        "text": "you know the very famous saying.. every coin has 2 sides to it..\nsure you can throw a party.. but how long will you party.. you will get bored for sure after a while..\nplus parties are so expensive now a days!!!",
+        "turnNumber": 6,
+        "timestamp": "2026-09-19T07:26:39.019Z"
+      },
+      {
+        "id": "patient-1789802803224",
+        "role": "patient",
+        "text": "*[Frowns slightly, her warm demeanor closing off just a bit as she pulls her hands back into her lap]* \n\n*[Voice turns flat and distant]* Oh... well, I didn't actually mean a real party. It was just a figure of speech. I just meant people expect you to be excited about it.",
+        "timestamp": "2026-09-19T07:26:43.224Z"
+      }
+    ],
+    "stats": {
+      "counselorWordCount": 141,
+      "patientWordCount": 319,
+      "counselorSharePct": 31,
+      "totalTurnsCompleted": 6,
+      "targetTurns": 15,
+      "earlyExit": true
+    },
+    "evaluation": {
+      "overallScore": 69,
+      "bandLabel": "Developing",
+      "ethicsFlag": {
+        "triggered": false,
+        "message": ""
+      },
+      "categories": [
+        {
+          "id": "talk_to_listen",
+          "name": "Talk-to-Listen Ratio",
+          "score": 10,
+          "maxScore": 15,
+          "description": "Counselor spoke 31% of total words (141 counselor vs 319 patient words).",
+          "feedbackSummary": "Counselor share was 31%, earning 10 out of 15 points."
+        },
+        {
+          "id": "question_quality",
+          "name": "Question Quality",
+          "score": 8,
+          "maxScore": 20,
+          "description": "Assesses the percentage of open-ended versus closed and leading questions.",
+          "feedbackSummary": "The counselor used multiple closed/leading questions (e.g., 'Ohh thats a major change for her? is she loving her college? has she made any friends?') rather than maintaining a fully person-centered stance."
+        },
+        {
+          "id": "advice_restraint",
+          "name": "Advice Restraint / Pacing",
+          "score": 15,
+          "maxScore": 25,
+          "description": "Measures resistance to giving unsolicited advice or problem-solving prematurely.",
+          "feedbackSummary": "The counselor introduced slight premature problem-framing and clunky metaphors (talking about throwing parties) around Turn 6, but generally held off on deep actionable advice."
+        },
+        {
+          "id": "rupture_repair",
+          "name": "Rupture & Repair",
+          "score": 6,
+          "maxScore": 20,
+          "description": "Tracks the recognition and repair of client defensiveness or therapeutic ruptures.",
+          "feedbackSummary": "In Turn 6, the counselor made light of the client's metaphor about throwing a party and talked about parties being expensive, which caused a noticeable cooling/rupture in the client's demeanor (Turn 7), which the counselor failed to notice or repair."
+        },
+        {
+          "id": "scope_awareness",
+          "name": "Scope & Referral Awareness",
+          "score": 20,
+          "maxScore": 20,
+          "description": "Appropriate identification of referral cues or scope limitations.",
+          "feedbackSummary": "No referral cue was planted in this case, so full points are awarded."
+        }
+      ],
+      "phase2Details": {
+        "strengths": [
+          "Maintained a warm, welcoming conversational tone in the early turns.",
+          "Validated the normal emotional weight of an empty nest transition in Turn 5 ('Its definitely not silly')."
+        ],
+        "areasForGrowth": [
+          "Improve question quality by asking open-ended exploratory questions instead of rapid-fire closed questions.",
+          "Exercise greater restraint around humorous tangents or clichés (e.g., parties being expensive) that dismiss the client's affective experience."
+        ],
+        "criticalTurns": [
+          {
+            "turn": 2,
+            "speaker": "COUNSELOR",
+            "quote": "Ohh thats a major change for her? is she loving her college? has she made any friends?",
+            "observation": "Rapid-fire questioning shifted the focus away from the client's internal world to check-list items about the daughter.",
+            "type": "distortion"
+          },
+          {
+            "turn": 6,
+            "speaker": "COUNSELOR",
+            "quote": "you know the very famous saying.. every coin has 2 sides to it.. sure you can throw a party.. but how long will you party.. you will get bored for sure after a while.. plus parties are so expensive now a days!!!",
+            "observation": "Brought in irrelevant humor and cliché advice, missing the client's deep emotional vulnerability about feeling lonely.",
+            "type": "rupture"
+          },
+          {
+            "turn": 7,
+            "speaker": "PATIENT",
+            "quote": "Oh... well, I didn't actually mean a real party. It was just a figure of speech. I just meant people expect you to be excited about it.",
+            "observation": "Client pulls back defensively, closing off her warm demeanor due to the counselor's off-base response.",
+            "type": "rupture"
+          }
+        ],
+        "cbtDistortionIdentified": false,
+        "cbtDistortionName": ""
+      },
+      "deterministicStats": {
+        "counselorWordCount": 141,
+        "patientWordCount": 319,
+        "counselorSharePct": 31,
+        "totalTurnsCompleted": 6,
+        "targetTurns": 15,
+        "earlyExit": true
+      }
+    },
+    "savedAt": "2026-09-19T07:29:14.511Z"
+  },
+  {
+    "id": "session_1789795024052",
+    "timestamp": "2026-09-19T05:17:04.052Z",
+    "user": {
+      "id": "user_1789794697754",
+      "name": "",
+      "email": "",
+      "institution": "",
+      "level": "Practicum Student",
+      "registeredAt": "2026-09-19T05:11:37.754Z"
+    },
+    "vignette": {
+      "id": "school-novice-1",
+      "title": "Maya T. — Dropping Grades & Silent Withdrawal",
+      "track": "school",
+      "difficulty": "novice",
+      "clientName": "Maya Thorne"
+    },
+    "config": {
+      "track": "school",
+      "modality": "rogerian",
+      "difficulty": "novice",
+      "mode": "micro",
+      "pacingType": "time",
+      "durationMinutes": 15,
+      "vignetteSelection": "specific",
+      "selectedVignetteId": "school-novice-1"
+    },
+    "messages": [
+      {
+        "id": "patient-initial",
+        "role": "patient",
+        "text": "*[Sits down and shifts in chair, looking around with mild hesitation]* Hi... I was told I should come in and talk to you today.",
+        "timestamp": "2026-09-19T05:16:17.993Z"
+      }
+    ],
+    "stats": {
+      "counselorWordCount": 0,
+      "patientWordCount": 13,
+      "counselorSharePct": 0,
+      "totalTurnsCompleted": 0,
+      "targetTurns": 15,
+      "earlyExit": true
+    },
+    "evaluation": {
+      "overallScore": 82,
+      "bandLabel": "Solid",
+      "ethicsFlag": {
+        "triggered": false,
+        "message": ""
+      },
+      "categories": [
+        {
+          "id": "talk_to_listen",
+          "name": "Talk-to-Listen Ratio",
+          "score": 15,
+          "maxScore": 15,
+          "description": "Counselor spoke 0% of total words (0 counselor vs 13 patient words).",
+          "feedbackSummary": "Counselor talk share was 0%, well within the optimal threshold."
+        },
+        {
+          "id": "question_quality",
+          "name": "Question Quality",
+          "score": 2,
+          "maxScore": 20,
+          "description": "Evaluates percentage of open vs closed/leading questions.",
+          "feedbackSummary": "No questions were asked due to early session termination, yielding minimal open question points."
+        },
+        {
+          "id": "advice_restraint",
+          "name": "Advice Restraint / Pacing",
+          "score": 25,
+          "maxScore": 25,
+          "description": "Measures ability to hold back unsolicited advice before establishing baseline rapport.",
+          "feedbackSummary": "No unsolicited advice was offered."
+        },
+        {
+          "id": "rupture_repair",
+          "name": "Rupture & Repair",
+          "score": 20,
+          "maxScore": 20,
+          "description": "Assesses detection and repair of therapeutic ruptures.",
+          "feedbackSummary": "No alliance ruptures occurred during the interaction."
+        },
+        {
+          "id": "scope_referral",
+          "name": "Scope & Referral Awareness",
+          "score": 20,
+          "maxScore": 20,
+          "description": "Evaluates proper handling of in-scope presenting concerns and referral cues.",
+          "feedbackSummary": "Case remained within scope with no unaddressed secondary medical cues."
+        }
+      ],
+      "phase2Details": {
+        "strengths": [
+          "Avoided offering premature or unsolicited advice",
+          "Maintained appropriate clinical scope for an in-scope baseline case"
+        ],
+        "areasForGrowth": [
+          "Engage actively with the patient rather than concluding the micro-session before responding",
+          "Initiate person-centered reflection and open questions to build conversational safety"
+        ],
+        "criticalTurns": [
+          {
+            "turn": 1,
+            "speaker": "Maya T.",
+            "quote": "Hi... I was told I should come in and talk to you today.",
+            "observation": "Client entered with mild hesitation and externalized referral motivation, presenting an immediate opportunity for a person-centered empathetic reflection.",
+            "type": "rapport_expansion"
+          }
+        ],
+        "cbtDistortionIdentified": false,
+        "cbtDistortionName": ""
+      },
+      "deterministicStats": {
+        "counselorWordCount": 0,
+        "patientWordCount": 13,
+        "counselorSharePct": 0,
+        "totalTurnsCompleted": 0,
+        "targetTurns": 15,
+        "earlyExit": true
+      }
+    },
+    "savedAt": "2026-09-19T05:17:04.152Z"
+  }
+]

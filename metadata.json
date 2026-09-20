@@ -1,0 +1,7 @@
+{
+  "name": "Conversational Counselling Trainer",
+  "description": "A deliberate practice counseling simulator with dual-agent patient roleplay and clinical supervisor evaluation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+

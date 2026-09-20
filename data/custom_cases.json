@@ -1,0 +1,80 @@
+[
+  {
+    "id": "custom-career-1",
+    "title": "Elena R. — Imposter Syndrome in Tech Leadership",
+    "track": "workplace",
+    "difficulty": "novice",
+    "clientName": "Elena Rostova",
+    "clientAge": 34,
+    "clientPronouns": "she/her",
+    "clientRole": "Senior Director of Engineering",
+    "presentingProblem": "Recently promoted to oversee four engineering teams. Despite exemplary performance reviews, she experiences intense chronic fear that colleagues will discover she is 'unqualified'.",
+    "backgroundStory": "First-generation immigrant from Eastern Europe who supported her family while earning her computer science degree. Culturally conditioned to believe that self-advocacy is arrogant and that any mistake reflects poorly on her family. She is sleeping 4 hours a night and proofreading her emails four times before sending.",
+    "baselineResistance": "Speaks with polished executive composure. Smiles professionally but maintains emotional distance, treating the counseling session like a business diagnostic.",
+    "positiveTriggers": [
+      "Validating the real structural pressures of leadership without joining her self-blame",
+      "Acknowledging how cultural survival strategies shaped her perfectionism",
+      "Gentle curiosity about the somatic cost of maintaining perfection"
+    ],
+    "negativeTriggers": [
+      "Generic affirmations like 'You got the job, so obviously you are qualified!'",
+      "Assigning time-management or delegation tips too quickly",
+      "Minimizing her fear by comparing her to others"
+    ],
+    "somaticTendencies": [
+      "Sits upright with hands neatly folded in lap",
+      "Gives a quick, self-deprecating laugh when acknowledging panic",
+      "Drops shoulders noticeably when the counselor validates her exhaustion"
+    ],
+    "plantedReferralCue": {
+      "exists": false,
+      "subtlety": "subtle",
+      "description": "High-functioning occupational anxiety and imposter syndrome without generalized panic disorder.",
+      "clinicalCategory": "In-Scope Workplace Counseling",
+      "properReferralPath": "Cognitive reframing and executive stress boundary counseling"
+    },
+    "counselorIntakeGoal": "Deconstruct perfectionism, establish genuine empathetic connection beyond executive armor, and explore cultural core beliefs.",
+    "isCustom": true,
+    "createdAt": "2026-09-19T08:00:00.000Z",
+    "updatedAt": "2026-09-19T08:00:00.000Z"
+  },
+  {
+    "id": "custom-general-1",
+    "title": "Marcus V. — Empty Nest & Lost Identity",
+    "track": "general",
+    "difficulty": "intermediate",
+    "clientName": "Marcus Vance",
+    "clientAge": 52,
+    "clientPronouns": "he/him",
+    "clientRole": "Landscape Architect & Father",
+    "presentingProblem": "Referred by his primary care physician for persistent lethargy and uncharacteristic irritability after his youngest child moved away for university two months ago.",
+    "backgroundStory": "Coached youth sports for 14 years and organized his entire daily routine around his children's schedules. His marriage has grown quiet and distant. He feels purposeless on weekends and sits in his garage working on tools without finishing projects.",
+    "baselineResistance": "Stoic, guarded, insists 'nothing is really broken, I'm just getting older.' Reluctant to admit feelings of sadness, masking them with irritability.",
+    "positiveTriggers": [
+      "Honoring his 14 years of deep devotion to fatherhood",
+      "Normalizing the grief of role-transition without calling it depression",
+      "Asking open questions about what his workshop and projects used to mean to him"
+    ],
+    "negativeTriggers": [
+      "Labeling his feelings as 'clinical depression' right off the bat",
+      "Suggesting hasty new hobbies or date nights with his wife",
+      "Prying aggressively into marital intimacy before establishing trust"
+    ],
+    "somaticTendencies": [
+      "Looks out the window with a furrowed brow",
+      "Clears throat repeatedly when emotions come close to the surface",
+      "Unclenches jaw and nods slowly when fatherhood grief is honored"
+    ],
+    "plantedReferralCue": {
+      "exists": false,
+      "subtlety": "subtle",
+      "description": "Complicated life stage transition and mild existential adjustment.",
+      "clinicalCategory": "In-Scope Life Transition",
+      "properReferralPath": "Existential / Person-centered counseling for life stage realignment"
+    },
+    "counselorIntakeGoal": "Create psychological safety for a stoic client to mourn the fatherhood era without feeling diminished or pathologized.",
+    "isCustom": true,
+    "createdAt": "2026-09-19T08:00:00.000Z",
+    "updatedAt": "2026-09-19T08:00:00.000Z"
+  }
+]
