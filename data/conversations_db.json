@@ -1,5 +1,39 @@
 [
   {
+    "id": "reg_user_morgani_gmail_com",
+    "timestamp": "2026-09-20T07:43:56.687Z",
+    "user": {
+      "id": "user_morgani_gmail_com",
+      "name": "Morgani",
+      "email": "morgani@gmail.com",
+      "password": "Morganism",
+      "level": "Beginner",
+      "registeredAt": "2026-09-20T07:43:56.687Z",
+      "isAdmin": false,
+      "role": "trainee",
+      "isPremium": true
+    },
+    "type": "user_registration",
+    "messages": []
+  },
+  {
+    "id": "reg_user_athulya_gmail_com",
+    "timestamp": "2026-09-20T07:43:36.342Z",
+    "user": {
+      "id": "user_athulya_gmail_com",
+      "name": "Athulya",
+      "email": "athulya@gmail.com",
+      "password": "Test1234",
+      "level": "Beginner",
+      "registeredAt": "2026-09-20T07:43:36.342Z",
+      "isAdmin": false,
+      "role": "trainee",
+      "isPremium": true
+    },
+    "type": "user_registration",
+    "messages": []
+  },
+  {
     "id": "audit_perm_1789805393604",
     "type": "audit_event",
     "eventType": "premium_revoked",
@@ -69,7 +103,22 @@
     "timestamp": "2026-09-19T07:57:40.989Z",
     "user": {
       "email": "test@gmail.com",
-      "isPremium": true
+      "isPremium": false,
+      "name": "test 1",
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1789883601,
+        "nanoseconds": 514000000
+      },
+      "premiumGrantedAt": null,
+      "lastActiveAt": "2026-09-20T06:27:25.755Z",
+      "role": "trainee",
+      "id": "user_test_gmail_com",
+      "isAdmin": false,
+      "password": "Password@123",
+      "registeredAt": "2026-09-20T05:53:21.231Z",
+      "institution": "",
+      "level": "Beginner"
     },
     "note": "Full Premium access granted by Administrator Athul Govind (Unlocks Phase 2 qualitative supervision analysis, distortion diagnosis, and advanced clinical tracks)"
   },

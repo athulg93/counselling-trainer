@@ -158,29 +158,30 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
         return;
       }
 
-      // 3. Fallback: If user enters email and name input was prefilled or can be derived from email handle
-      const fallbackName = name.trim() || (() => {
-        const localPart = cleanEmail.split('@')[0] || 'Practitioner';
-        const parts = localPart.replace(/[._\-0-9]+/g, ' ').trim().split(/\s+/).filter(Boolean);
-        if (parts.length === 0) return 'Practitioner';
-        return parts.map((p) => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join(' ');
-      })();
+      // 3. New user (email not found in database):
+      if (name.trim()) {
+        // If user already typed their name in prefilled state
+        const autoResolvedUser: UserProfile = {
+          id: `user_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+          name: name.trim(),
+          email: cleanEmail,
+          password: cleanPassword,
+          level: 'Beginner',
+          registeredAt: new Date().toISOString(),
+          isAdmin: false,
+          role: 'trainee',
+          isPremium: true,
+        };
 
-      const autoResolvedUser: UserProfile = {
-        id: `user_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
-        name: fallbackName,
-        email: cleanEmail,
-        password: cleanPassword,
-        level: 'Beginner',
-        registeredAt: new Date().toISOString(),
-        isAdmin: false,
-        role: 'trainee',
-        isPremium: true,
-      };
+        saveUserToFirestore(autoResolvedUser).catch(() => {});
+        setIsCheckingAccount(false);
+        onLogin(autoResolvedUser);
+        return;
+      }
 
-      saveUserToFirestore(autoResolvedUser).catch(() => {});
+      // User needs to provide their Full Name / Clinician Title
       setIsCheckingAccount(false);
-      onLogin(autoResolvedUser);
+      setTraineeStep('new_user_name');
     } catch (err: any) {
       console.error('Login check error:', err);
       setIsCheckingAccount(false);
