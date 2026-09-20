@@ -12,6 +12,9 @@ import {
   ChevronDown,
   Info,
   FileCheck,
+  RefreshCw,
+  Edit3,
+  X,
 } from 'lucide-react';
 import { CaseVignette, ChatMessage, SessionConfig } from '../types';
 
@@ -22,7 +25,11 @@ interface SimulationScreenProps {
   currentTurn: number;
   maxTurns: number;
   isLoadingPatient: boolean;
+  errorMessage?: string | null;
   onSendMessage: (text: string) => void;
+  onRetryLastTurn?: () => void;
+  onEditLastTurn?: () => string | void;
+  onClearError?: () => void;
   onConcludeEarly: () => void;
   onExit: () => void;
   onShowIntakeBriefing: () => void;
@@ -35,7 +42,11 @@ export const SimulationScreen: React.FC<SimulationScreenProps> = ({
   currentTurn,
   maxTurns,
   isLoadingPatient,
+  errorMessage,
   onSendMessage,
+  onRetryLastTurn,
+  onEditLastTurn,
+  onClearError,
   onConcludeEarly,
   onExit,
   onShowIntakeBriefing,
@@ -456,6 +467,7 @@ export const SimulationScreen: React.FC<SimulationScreenProps> = ({
           );
         })}
 
+        {/* Patient reflection loader */}
         {isLoadingPatient && (
           <div className="flex justify-start">
             <div className="bg-white border border-stone-200 rounded-2xl rounded-bl-xs p-3.5 shadow-2xs flex items-center space-x-2 text-stone-500 text-xs">
@@ -465,6 +477,69 @@ export const SimulationScreen: React.FC<SimulationScreenProps> = ({
                 <span className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce [animation-delay:-0.15s]" />
                 <span className="w-1.5 h-1.5 bg-stone-400 rounded-full animate-bounce" />
               </span>
+            </div>
+          </div>
+        )}
+
+        {/* API Error / Retry Card */}
+        {errorMessage && (
+          <div
+            id="simulation-error-banner"
+            className="flex justify-start my-2"
+          >
+            <div className="bg-red-50/90 border border-red-200 text-red-900 rounded-2xl p-3.5 shadow-xs max-w-lg w-full">
+              <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="flex items-center space-x-2">
+                  <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+                  <span className="font-semibold text-xs text-red-800">
+                    Patient response interrupted
+                  </span>
+                </div>
+                {onClearError && (
+                  <button
+                    type="button"
+                    onClick={onClearError}
+                    className="text-red-400 hover:text-red-700 p-0.5"
+                    title="Dismiss"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+              <p className="text-xs text-red-700 leading-relaxed mb-3">
+                {errorMessage}
+              </p>
+              <div className="flex items-center space-x-2">
+                {onRetryLastTurn && (
+                  <button
+                    type="button"
+                    id="retry-turn-btn"
+                    onClick={onRetryLastTurn}
+                    disabled={isLoadingPatient}
+                    className="px-3 py-1.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-medium transition-colors flex items-center space-x-1.5 shadow-2xs disabled:opacity-50"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    <span>Retry Turn</span>
+                  </button>
+                )}
+                {onEditLastTurn && (
+                  <button
+                    type="button"
+                    id="edit-turn-btn"
+                    onClick={() => {
+                      const text = onEditLastTurn();
+                      if (typeof text === 'string') {
+                        setInputText(text);
+                      }
+                    }}
+                    disabled={isLoadingPatient}
+                    className="px-3 py-1.5 rounded-lg border border-red-200 bg-white hover:bg-red-50 text-red-800 text-xs font-medium transition-colors flex items-center space-x-1.5"
+                  >
+                    <Edit3 className="w-3 h-3" />
+                    <span>Edit & Resend</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}

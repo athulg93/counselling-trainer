@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   Users,
   ShieldCheck,
+  ShieldAlert,
+  Shield,
   Award,
   Download,
   Upload,
@@ -21,6 +23,7 @@ import {
   Database,
   ArrowRight,
   UserCheck,
+  UserPlus,
   Crown,
   History,
   Activity,
@@ -34,9 +37,16 @@ import {
   EyeOff,
   Check,
   BookOpen,
+  LogOut,
 } from 'lucide-react';
 import { UserProfile, AdminUserSummary, StoredSessionRecord, UserTransactionEvent } from '../types';
 import { CaseManagerTab } from './CaseManagerTab';
+import {
+  deleteUserFromFirestore,
+  resetUserPasswordInFirestore,
+  saveUserToFirestore,
+  updateUserAdminRoleInFirestore,
+} from '../lib/firebase';
 
 interface AdminPortalScreenProps {
   currentUser: UserProfile | null;
@@ -92,6 +102,26 @@ export const AdminPortalScreen: React.FC<AdminPortalScreenProps> = ({
     lastUpdatedAt: string | null;
   } | null>(null);
 
+  // Multi-Admin Management State
+  const [adminList, setAdminList] = useState<any[]>([]);
+  const [showAddAdminModal, setShowAddAdminModal] = useState<boolean>(false);
+  const [newAdminName, setNewAdminName] = useState<string>('');
+  const [newAdminEmail, setNewAdminEmail] = useState<string>('');
+  const [newAdminPassword, setNewAdminPassword] = useState<string>('');
+  const [newAdminDepartment, setNewAdminDepartment] = useState<string>('');
+  const [isCreatingAdmin, setIsCreatingAdmin] = useState<boolean>(false);
+  const [createAdminError, setCreateAdminError] = useState<string | null>(null);
+  const [togglingAdminEmail, setTogglingAdminEmail] = useState<string | null>(null);
+
+  // Admin User Action Modals: Reset Password & Delete User
+  const [userToResetPassword, setUserToResetPassword] = useState<UserProfile | null>(null);
+  const [newPasswordForUser, setNewPasswordForUser] = useState<string>('');
+  const [isResettingUserPwd, setIsResettingUserPwd] = useState<boolean>(false);
+  const [resetUserPwdError, setResetUserPwdError] = useState<string | null>(null);
+
+  const [userToDelete, setUserToDelete] = useState<UserProfile | null>(null);
+  const [isDeletingUser, setIsDeletingUser] = useState<boolean>(false);
+
   // Fetch full users and transaction history from server
   const fetchUsersWithHistory = async () => {
     setLoading(true);
@@ -111,6 +141,18 @@ export const AdminPortalScreen: React.FC<AdminPortalScreenProps> = ({
     }
   };
 
+  const fetchAdminList = async () => {
+    try {
+      const res = await fetch('/api/admin/admins');
+      if (res.ok) {
+        const data = await res.json();
+        setAdminList(data.admins || []);
+      }
+    } catch (err) {
+      console.error('Error fetching admin list:', err);
+    }
+  };
+
   const fetchCredentialStatus = async () => {
     try {
       const res = await fetch('/api/admin/credentials/status');
@@ -126,7 +168,148 @@ export const AdminPortalScreen: React.FC<AdminPortalScreenProps> = ({
   useEffect(() => {
     fetchUsersWithHistory();
     fetchCredentialStatus();
+    fetchAdminList();
   }, []);
+
+  // Create new Administrator
+  const handleCreateAdmin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreateAdminError(null);
+    const cleanName = newAdminName.trim();
+    const cleanEmail = newAdminEmail.trim().toLowerCase();
+    const cleanPassword = newAdminPassword.trim();
+    const cleanInst = newAdminDepartment.trim() || 'Executive Administration';
+
+    if (!cleanName || !cleanEmail || !cleanPassword) {
+      setCreateAdminError('Name, email, and password are required.');
+      return;
+    }
+    if (cleanPassword.length < 4) {
+      setCreateAdminError('Password must be at least 4 characters long.');
+      return;
+    }
+
+    setIsCreatingAdmin(true);
+    try {
+      const res = await fetch('/api/admin/create-admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: cleanName,
+          email: cleanEmail,
+          password: cleanPassword,
+          institution: cleanInst,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to create administrator.');
+      }
+
+      // Sync Firestore
+      saveUserToFirestore({
+        id: `admin_${Date.now()}`,
+        name: cleanName,
+        email: cleanEmail,
+        password: cleanPassword,
+        institution: cleanInst,
+        isAdmin: true,
+        role: 'admin',
+        isPremium: true,
+        registeredAt: new Date().toISOString(),
+        lastActiveAt: new Date().toISOString(),
+      }).catch(() => {});
+
+      triggerFeedback('success', `Administrator ${cleanName} (${cleanEmail}) successfully created!`);
+      setShowAddAdminModal(false);
+      setNewAdminName('');
+      setNewAdminEmail('');
+      setNewAdminPassword('');
+      setNewAdminDepartment('');
+
+      await fetchAdminList();
+      await fetchUsersWithHistory();
+    } catch (err: any) {
+      setCreateAdminError(err.message || 'Failed to create administrator.');
+    } finally {
+      setIsCreatingAdmin(false);
+    }
+  };
+
+  // Toggle Admin Role on existing user
+  const handleToggleAdminRole = async (userEmail: string, currentIsAdmin: boolean) => {
+    const newIsAdmin = !currentIsAdmin;
+    setTogglingAdminEmail(userEmail);
+    try {
+      const res = await fetch('/api/admin/toggle-admin-role', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: userEmail, isAdmin: newIsAdmin }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to toggle admin role');
+      }
+
+      // Sync Firestore
+      updateUserAdminRoleInFirestore(userEmail, newIsAdmin).catch(() => {});
+
+      // Update local usersData state
+      setUsersData((prev) =>
+        prev.map((item) => {
+          if (item.user.email.toLowerCase() === userEmail.toLowerCase()) {
+            const updatedUser: UserProfile = { ...item.user, isAdmin: newIsAdmin, role: (newIsAdmin ? 'admin' : 'trainee') as UserProfile['role'] };
+            const newHistoryEvent: UserTransactionEvent = {
+              id: `event_${Date.now()}`,
+              type: 'audit_event',
+              timestamp: new Date().toISOString(),
+              title: newIsAdmin ? 'Promoted to Administrator' : 'Administrator Role Revoked',
+              details: `Admin role updated by ${currentUser?.name || 'Athul Govind'}`,
+            };
+            return {
+              ...item,
+              user: updatedUser,
+              history: [newHistoryEvent, ...item.history],
+            };
+          }
+          return item;
+        })
+      );
+
+      await fetchAdminList();
+      triggerFeedback(
+        'success',
+        newIsAdmin
+          ? `Promoted ${userEmail} to Administrator with full administrative access.`
+          : `Revoked Administrator privileges for ${userEmail}.`
+      );
+    } catch (err: any) {
+      triggerFeedback('error', err.message || 'Failed to update administrator role.');
+    } finally {
+      setTogglingAdminEmail(null);
+    }
+  };
+
+  // Delete secondary admin account
+  const handleDeleteAdminAccount = async (adminEmail: string) => {
+    if (!window.confirm(`Are you sure you want to remove administrator permissions for ${adminEmail}?`)) return;
+    try {
+      const res = await fetch(`/api/admin/admins/${encodeURIComponent(adminEmail)}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to delete admin');
+
+      updateUserAdminRoleInFirestore(adminEmail, false).catch(() => {});
+      triggerFeedback('success', `Administrator ${adminEmail} removed successfully.`);
+      await fetchAdminList();
+      await fetchUsersWithHistory();
+    } catch (err: any) {
+      triggerFeedback('error', err.message || 'Failed to delete administrator.');
+    }
+  };
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -245,6 +428,103 @@ export const AdminPortalScreen: React.FC<AdminPortalScreenProps> = ({
       triggerFeedback('error', err.message || 'Could not update premium status.');
     } finally {
       setTogglingPremiumEmail(null);
+    }
+  };
+
+  // Reset a User's Password (Admin Action)
+  const handleConfirmResetUserPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userToResetPassword) return;
+    setResetUserPwdError(null);
+
+    const cleanPwd = newPasswordForUser.trim();
+    if (cleanPwd.length < 4) {
+      setResetUserPwdError('Password must be at least 4 characters long.');
+      return;
+    }
+
+    setIsResettingUserPwd(true);
+    try {
+      const res = await fetch('/api/admin/users/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: userToResetPassword.email,
+          newPassword: cleanPwd,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to reset password');
+      }
+
+      // Also update Firestore
+      resetUserPasswordInFirestore(userToResetPassword.email, cleanPwd).catch(() => {});
+
+      // Update local state and history event
+      setUsersData((prev) =>
+        prev.map((item) => {
+          if (item.user.email.toLowerCase() === userToResetPassword.email.toLowerCase()) {
+            const newHistoryEvent: UserTransactionEvent = {
+              id: `event_${Date.now()}`,
+              type: 'audit_event',
+              timestamp: new Date().toISOString(),
+              title: 'Password Reset by Administrator',
+              details: `Password updated by Athul Govind`,
+            };
+            return {
+              ...item,
+              user: { ...item.user, password: cleanPwd },
+              history: [newHistoryEvent, ...item.history],
+            };
+          }
+          return item;
+        })
+      );
+
+      triggerFeedback('success', `Password for ${userToResetPassword.email} successfully updated.`);
+      setUserToResetPassword(null);
+      setNewPasswordForUser('');
+    } catch (err: any) {
+      setResetUserPwdError(err.message || 'Failed to reset password.');
+    } finally {
+      setIsResettingUserPwd(false);
+    }
+  };
+
+  // Delete User and All Data (Admin Action)
+  const handleConfirmDeleteUser = async () => {
+    if (!userToDelete) return;
+    setIsDeletingUser(true);
+
+    try {
+      const res = await fetch(`/api/admin/users/${encodeURIComponent(userToDelete.email)}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'Failed to delete user');
+      }
+
+      // Delete from Firestore
+      deleteUserFromFirestore(userToDelete.email).catch(() => {});
+
+      // Remove from local state
+      setUsersData((prev) =>
+        prev.filter((item) => item.user.email.toLowerCase() !== userToDelete.email.toLowerCase())
+      );
+
+      triggerFeedback(
+        'success',
+        `User ${userToDelete.email} and all associated simulation transcripts were permanently deleted.`
+      );
+      setUserToDelete(null);
+    } catch (err: any) {
+      triggerFeedback('error', err.message || 'Failed to delete user');
+    } finally {
+      setIsDeletingUser(false);
     }
   };
 
@@ -424,31 +704,51 @@ export const AdminPortalScreen: React.FC<AdminPortalScreenProps> = ({
       )}
 
       {/* Top Administrative Header Banner */}
-      <div className="bg-stone-900 text-stone-100 rounded-3xl p-6 sm:p-8 shadow-md mb-8 border border-stone-800">
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
-          <div>
-            <div className="flex items-center space-x-2.5 mb-2">
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center space-x-1">
-                <Crown className="w-3.5 h-3.5 mr-1 text-amber-400" />
-                Executive Clinical Hub
-              </span>
-              <span className="text-xs text-stone-400">Authenticated: athulgovind.1993@gmail.com</span>
-            </div>
+      <div className="bg-stone-900 text-stone-100 rounded-3xl p-6 sm:p-8 shadow-md mb-8 border border-stone-800 overflow-hidden">
+        {/* Top Utility Sub-Header */}
+        <div className="flex flex-wrap items-center gap-2.5 pb-5 mb-5 border-b border-stone-800/80">
+          <span className="px-2.5 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/30 flex items-center space-x-1.5 shadow-2xs">
+            <Crown className="w-3.5 h-3.5 text-amber-400" />
+            <span>Executive Clinical Hub</span>
+          </span>
+          <span className="text-xs text-stone-400 font-medium">
+            Authenticated as:{' '}
+            <span className="text-stone-200 font-mono">
+              {currentUser?.email || 'athulgovind.1993@gmail.com'}
+            </span>
+          </span>
+        </div>
+
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
+          <div className="max-w-2xl">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
               Practitioner Intelligence & Database Hub
             </h1>
-            <p className="text-sm text-stone-300 mt-1.5 max-w-2xl leading-relaxed">
+            <p className="text-sm text-stone-300 mt-2 leading-relaxed">
               Monitor registered clinicians, inspect multi-turn session transaction logs, grant or revoke
               Phase 2 premium privileges, and download or restore complete database backups across version releases.
             </p>
           </div>
 
           {/* Quick Action Buttons */}
-          <div className="flex flex-wrap items-center gap-3 shrink-0">
+          <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+            <button
+              id="admin-create-admin-btn"
+              onClick={() => {
+                setShowAddAdminModal(true);
+                setCreateAdminError(null);
+              }}
+              className="px-3.5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs sm:text-sm shadow-sm transition-colors flex items-center space-x-2 cursor-pointer"
+              title="Create a new system administrator"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>Add Admin</span>
+            </button>
+
             <button
               id="admin-launch-simulation-btn"
               onClick={onNavigateToSimulation}
-              className="px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-semibold text-xs sm:text-sm shadow-sm transition-colors flex items-center space-x-2"
+              className="px-3.5 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-500 text-white font-semibold text-xs sm:text-sm shadow-sm transition-colors flex items-center space-x-2 cursor-pointer"
             >
               <Play className="w-4 h-4 fill-white" />
               <span>Launch Simulation</span>
@@ -457,7 +757,7 @@ export const AdminPortalScreen: React.FC<AdminPortalScreenProps> = ({
             <a
               href="/api/admin/backup/download"
               download
-              className="px-4 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 border border-stone-700 text-stone-200 font-medium text-xs sm:text-sm transition-colors flex items-center space-x-2"
+              className="px-3.5 py-2.5 rounded-xl bg-stone-800 hover:bg-stone-700 border border-stone-700 text-stone-200 font-medium text-xs sm:text-sm transition-colors flex items-center space-x-2"
               title="Download raw database backup (.json)"
             >
               <Download className="w-4 h-4 text-amber-400" />
@@ -466,7 +766,7 @@ export const AdminPortalScreen: React.FC<AdminPortalScreenProps> = ({
 
             <button
               onClick={() => setActiveTab('security')}
-              className={`px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm font-medium transition-colors flex items-center space-x-2 ${
+              className={`px-3.5 py-2.5 rounded-xl border text-xs sm:text-sm font-medium transition-colors flex items-center space-x-2 cursor-pointer ${
                 activeTab === 'security'
                   ? 'bg-amber-600 text-white border-amber-500 shadow-sm'
                   : 'bg-stone-800 hover:bg-stone-700 border-stone-700 text-stone-200'
@@ -474,18 +774,8 @@ export const AdminPortalScreen: React.FC<AdminPortalScreenProps> = ({
               title="Change Administrator Password & Security Settings"
             >
               <KeyRound className="w-4 h-4 text-amber-400" />
-              <span>Change Password</span>
+              <span>Security Settings</span>
             </button>
-
-            {onLogout && (
-              <button
-                onClick={onLogout}
-                className="px-3 py-2.5 rounded-xl bg-stone-800 hover:bg-rose-950/40 border border-stone-700 hover:border-rose-800 text-stone-300 hover:text-rose-300 text-xs sm:text-sm transition-colors"
-                title="Sign out of Administrator Hub"
-              >
-                Sign Out
-              </button>
-            )}
           </div>
         </div>
 
@@ -688,13 +978,19 @@ export const AdminPortalScreen: React.FC<AdminPortalScreenProps> = ({
               {filteredUsers.map((item) => {
                 const isExpanded = expandedUserEmail === item.user.email;
                 const isToggling = togglingPremiumEmail === item.user.email;
-                const isCurrentAdmin = item.user.email === 'athulgovind.1993@gmail.com';
+                const isTogglingAdmin = togglingAdminEmail === item.user.email;
+                const isMasterAdmin = item.user.email.toLowerCase() === 'athulgovind.1993@gmail.com';
+                const isUserAdmin = !!item.user.isAdmin || item.user.role === 'admin' || isMasterAdmin;
 
                 return (
                   <div
                     key={item.user.email}
                     className={`bg-white rounded-2xl border transition-all shadow-sm ${
-                      item.user.isPremium
+                      isMasterAdmin
+                        ? 'border-amber-300 ring-1 ring-amber-200'
+                        : isUserAdmin
+                        ? 'border-indigo-200 ring-1 ring-indigo-100'
+                        : item.user.isPremium
                         ? 'border-amber-200 ring-1 ring-amber-100'
                         : 'border-stone-200'
                     }`}
@@ -705,7 +1001,11 @@ export const AdminPortalScreen: React.FC<AdminPortalScreenProps> = ({
                       <div className="flex items-start space-x-3.5">
                         <div
                           className={`w-11 h-11 rounded-2xl font-bold text-sm flex items-center justify-center shrink-0 ${
-                            item.user.isPremium
+                            isMasterAdmin
+                              ? 'bg-amber-100 text-amber-900 border border-amber-300'
+                              : isUserAdmin
+                              ? 'bg-indigo-100 text-indigo-900 border border-indigo-300'
+                              : item.user.isPremium
                               ? 'bg-amber-100 text-amber-900 border border-amber-300'
                               : 'bg-stone-100 text-stone-700 border border-stone-200'
                           }`}
@@ -719,11 +1019,17 @@ export const AdminPortalScreen: React.FC<AdminPortalScreenProps> = ({
                               {item.user.name || 'Anonymous Practitioner'}
                             </h3>
 
-                            {isCurrentAdmin && (
-                              <span className="px-2 py-0.5 rounded-md text-[11px] font-extrabold uppercase bg-stone-900 text-amber-300">
-                                Admin Master
+                            {isMasterAdmin ? (
+                              <span className="px-2 py-0.5 rounded-md text-[11px] font-extrabold uppercase bg-stone-900 text-amber-300 flex items-center space-x-1">
+                                <Crown className="w-3 h-3 text-amber-400 mr-1" />
+                                Master Admin
                               </span>
-                            )}
+                            ) : isUserAdmin ? (
+                              <span className="px-2 py-0.5 rounded-md text-[11px] font-bold uppercase bg-indigo-100 text-indigo-800 border border-indigo-200 flex items-center space-x-1">
+                                <ShieldCheck className="w-3 h-3 text-indigo-600 mr-1" />
+                                Administrator
+                              </span>
+                            ) : null}
 
                             {item.user.isPremium ? (
                               <span className="px-2 py-0.5 rounded-full text-[11px] font-bold uppercase bg-amber-100 text-amber-900 border border-amber-300 flex items-center space-x-1">
@@ -778,7 +1084,7 @@ export const AdminPortalScreen: React.FC<AdminPortalScreenProps> = ({
                       </div>
 
                       {/* Right: Actions */}
-                      <div className="flex items-center space-x-2.5 shrink-0 justify-end">
+                      <div className="flex items-center space-x-2 shrink-0 justify-end flex-wrap gap-y-2">
                         {/* Grant / Revoke Premium Button */}
                         <button
                           id={`toggle-premium-btn-${item.user.email}`}
@@ -804,6 +1110,57 @@ export const AdminPortalScreen: React.FC<AdminPortalScreenProps> = ({
                           )}
                           <span>{item.user.isPremium ? 'Revoke Premium' : 'Grant Premium'}</span>
                         </button>
+
+                        {/* Promote to / Demote from Admin (for non-master accounts) */}
+                        {!isMasterAdmin && (
+                          <button
+                            id={`toggle-admin-btn-${item.user.email}`}
+                            disabled={isTogglingAdmin}
+                            onClick={() => handleToggleAdminRole(item.user.email, isUserAdmin)}
+                            className={`px-2.5 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-1 transition-colors border ${
+                              isUserAdmin
+                                ? 'border-indigo-300 bg-indigo-50 hover:bg-indigo-100 text-indigo-800'
+                                : 'border-stone-200 hover:bg-stone-100 text-stone-700'
+                            }`}
+                            title={isUserAdmin ? 'Demote administrator to regular clinician' : 'Promote clinician to administrator'}
+                          >
+                            {isTogglingAdmin ? (
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            ) : isUserAdmin ? (
+                              <ShieldCheck className="w-3.5 h-3.5 text-indigo-700" />
+                            ) : (
+                              <Shield className="w-3.5 h-3.5 text-stone-500" />
+                            )}
+                            <span>{isUserAdmin ? 'Demote Admin' : 'Make Admin'}</span>
+                          </button>
+                        )}
+
+                        {/* Reset User Password Button */}
+                        <button
+                          id={`reset-pwd-btn-${item.user.email}`}
+                          onClick={() => {
+                            setUserToResetPassword(item.user);
+                            setNewPasswordForUser('');
+                            setResetUserPwdError(null);
+                          }}
+                          className="px-2.5 py-1.5 rounded-xl border border-stone-200 hover:bg-stone-100 text-stone-700 text-xs font-semibold flex items-center space-x-1 transition-colors"
+                          title="Set a new password for this user"
+                        >
+                          <KeyRound className="w-3.5 h-3.5 text-amber-600" />
+                          <span className="hidden sm:inline">Reset Pwd</span>
+                        </button>
+
+                        {/* Delete User Button (Hidden for master admin) */}
+                        {!isMasterAdmin && (
+                          <button
+                            id={`delete-user-btn-${item.user.email}`}
+                            onClick={() => setUserToDelete(item.user)}
+                            className="p-1.5 rounded-xl border border-stone-200 hover:bg-rose-50 text-stone-400 hover:text-rose-700 transition-colors"
+                            title="Delete user account and all session records"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
 
                         {/* Expand History Button */}
                         <button
@@ -1486,11 +1843,11 @@ export const AdminPortalScreen: React.FC<AdminPortalScreenProps> = ({
                 <div className="space-y-2.5 pt-3 border-t border-stone-800 text-xs">
                   <div className="flex items-center justify-between">
                     <span className="text-stone-400">Authority Role</span>
-                    <span className="text-stone-200 font-medium">Executive Admin</span>
+                    <span className="text-stone-200 font-medium">Executive Master Admin</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-stone-400">Database Storage</span>
-                    <span className="text-stone-200 font-mono">data/admin_auth.json</span>
+                    <span className="text-stone-400">Total Administrators</span>
+                    <span className="text-amber-400 font-bold">{adminList.length}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-stone-400">Last Modified</span>
@@ -1509,6 +1866,68 @@ export const AdminPortalScreen: React.FC<AdminPortalScreenProps> = ({
                 </div>
               </div>
 
+              {/* Admin Accounts List */}
+              <div className="bg-white border border-stone-200 rounded-3xl p-5 shadow-sm space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <ShieldCheck className="w-4 h-4 text-amber-600" />
+                    <h4 className="text-xs font-bold text-stone-900 uppercase tracking-wider">
+                      Authorized Administrators ({adminList.length})
+                    </h4>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowAddAdminModal(true);
+                      setCreateAdminError(null);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200 text-xs font-bold transition-colors flex items-center space-x-1"
+                  >
+                    <UserPlus className="w-3 h-3" />
+                    <span>Add</span>
+                  </button>
+                </div>
+
+                <div className="space-y-2 pt-1 max-h-60 overflow-y-auto">
+                  {adminList.map((admin) => {
+                    const isMaster = admin.email.toLowerCase() === 'athulgovind.1993@gmail.com';
+                    return (
+                      <div
+                        key={admin.email}
+                        className="p-2.5 rounded-xl bg-stone-50 border border-stone-200/70 flex items-center justify-between gap-2 text-xs"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center space-x-1.5">
+                            <span className="font-bold text-stone-800 truncate">
+                              {admin.name || admin.email}
+                            </span>
+                            {isMaster ? (
+                              <span className="px-1.5 py-0.2 rounded text-[10px] font-extrabold bg-stone-900 text-amber-300">
+                                Master
+                              </span>
+                            ) : (
+                              <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                Admin
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[11px] text-stone-500 font-mono truncate">{admin.email}</div>
+                        </div>
+
+                        {!isMaster && (
+                          <button
+                            onClick={() => handleDeleteAdminAccount(admin.email)}
+                            className="p-1 rounded-lg hover:bg-rose-50 text-stone-400 hover:text-rose-600 transition-colors shrink-0"
+                            title="Remove Administrator Privileges"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Security Advisory */}
               <div className="bg-amber-50/70 border border-amber-200 rounded-3xl p-5 text-xs text-amber-900 space-y-2.5">
                 <div className="flex items-center space-x-2 font-bold text-amber-950">
@@ -1516,7 +1935,7 @@ export const AdminPortalScreen: React.FC<AdminPortalScreenProps> = ({
                   <span>Administrative Security Best Practices</span>
                 </div>
                 <p className="text-amber-800 leading-relaxed">
-                  Your administrator account holds unrestricted control over simulation session databases, trainee profiles, and evaluative scorecards.
+                  Administrator accounts hold unrestricted control over simulation session databases, trainee profiles, and evaluative scorecards.
                 </p>
                 <ul className="list-disc pl-4 space-y-1 text-amber-900/90 text-[11px]">
                   <li>Never share your credentials with unauthorized personnel.</li>
@@ -1633,6 +2052,282 @@ export const AdminPortalScreen: React.FC<AdminPortalScreenProps> = ({
           </div>
         </div>
       )}
+
+      {/* MODAL: Admin Reset User Password */}
+      {userToResetPassword && (
+        <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl border border-stone-200 shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-6 border-b border-stone-100 flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center">
+                  <KeyRound className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-stone-900">Reset User Password</h3>
+                  <p className="text-xs text-stone-500 font-mono">{userToResetPassword.email}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setUserToResetPassword(null);
+                  setNewPasswordForUser('');
+                  setResetUserPwdError(null);
+                }}
+                className="p-1 rounded-lg text-stone-400 hover:text-stone-700"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleConfirmResetUserPassword} className="p-6 space-y-4">
+              <p className="text-xs text-stone-600 leading-relaxed">
+                Enter a new password for <strong>{userToResetPassword.name || userToResetPassword.email}</strong>. Once saved, this clinician can sign in with the new password.
+              </p>
+
+              {resetUserPwdError && (
+                <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-medium">
+                  {resetUserPwdError}
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-stone-700 mb-1.5">
+                  New Password *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={newPasswordForUser}
+                  onChange={(e) => {
+                    setNewPasswordForUser(e.target.value);
+                    if (resetUserPwdError) setResetUserPwdError(null);
+                  }}
+                  placeholder="Enter new password (min 4 characters)"
+                  className="w-full px-3.5 py-2.5 rounded-xl border border-stone-200 text-stone-900 text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition-all placeholder:text-stone-400"
+                />
+              </div>
+
+              <div className="flex items-center justify-end space-x-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUserToResetPassword(null);
+                    setNewPasswordForUser('');
+                    setResetUserPwdError(null);
+                  }}
+                  className="px-4 py-2.5 rounded-xl border border-stone-200 text-stone-700 text-xs font-semibold hover:bg-stone-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isResettingUserPwd || !newPasswordForUser.trim()}
+                  className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-sm transition-all flex items-center space-x-1.5 disabled:opacity-50"
+                >
+                  {isResettingUserPwd ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Check className="w-3.5 h-3.5" />
+                  )}
+                  <span>Save New Password</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Delete User Confirmation */}
+      {userToDelete && (
+        <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl border border-stone-200 shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-6 border-b border-stone-100 flex items-center justify-between bg-rose-50/50">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-800 flex items-center justify-center">
+                  <Trash2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-rose-950">Delete Clinician Account</h3>
+                  <p className="text-xs text-rose-700 font-mono">{userToDelete.email}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setUserToDelete(null)}
+                className="p-1 rounded-lg text-stone-400 hover:text-stone-700"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <p className="text-sm text-stone-700 leading-relaxed">
+                Are you sure you want to delete <strong>{userToDelete.name || userToDelete.email}</strong>?
+              </p>
+
+              <div className="bg-rose-50 border border-rose-200 rounded-2xl p-4 text-xs text-rose-900 space-y-1.5">
+                <div className="font-bold flex items-center space-x-1.5">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>Permanent Action Warning:</span>
+                </div>
+                <p>
+                  This will permanently delete the user profile, all clinical simulation transcripts, supervisory evaluation scorecards, and historical logs. This action cannot be reversed.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end space-x-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setUserToDelete(null)}
+                  disabled={isDeletingUser}
+                  className="px-4 py-2.5 rounded-xl border border-stone-200 text-stone-700 text-xs font-semibold hover:bg-stone-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDeleteUser}
+                  disabled={isDeletingUser}
+                  className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-sm transition-all flex items-center space-x-1.5 disabled:opacity-50"
+                >
+                  {isDeletingUser ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Trash2 className="w-3.5 h-3.5" />
+                  )}
+                  <span>Confirm Permanent Deletion</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: Add New Administrator */}
+      {showAddAdminModal && (
+        <div className="fixed inset-0 z-50 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl border border-stone-200 shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            <div className="p-6 border-b border-stone-100 flex items-center justify-between bg-amber-50/50">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center">
+                  <UserPlus className="w-5 h-5 text-amber-700" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-stone-900">Create New Administrator</h3>
+                  <p className="text-xs text-stone-500">Grant full supervisory and admin hub privileges</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowAddAdminModal(false);
+                  setNewAdminEmail('');
+                  setNewAdminPassword('');
+                  setNewAdminName('');
+                  setNewAdminDepartment('');
+                  setCreateAdminError(null);
+                }}
+                className="p-1 rounded-lg text-stone-400 hover:text-stone-700"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateAdmin} className="p-6 space-y-4">
+              {createAdminError && (
+                <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-start space-x-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                  <span>{createAdminError}</span>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  Full Name <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g., Dr. Sarah Jenkins"
+                  value={newAdminName}
+                  onChange={(e) => setNewAdminName(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-stone-200 text-stone-900 text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  Admin Email Address <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  required
+                  placeholder="admin@institution.org"
+                  value={newAdminEmail}
+                  onChange={(e) => setNewAdminEmail(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-stone-200 text-stone-900 text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  Password <span className="text-rose-500">*</span>
+                </label>
+                <input
+                  type="password"
+                  required
+                  placeholder="Minimum 4 characters"
+                  value={newAdminPassword}
+                  onChange={(e) => setNewAdminPassword(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-stone-200 text-stone-900 text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600 font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-stone-700 mb-1">
+                  Clinical Department / Organization
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., Department of Psychiatry"
+                  value={newAdminDepartment}
+                  onChange={(e) => setNewAdminDepartment(e.target.value)}
+                  className="w-full px-3.5 py-2 rounded-xl border border-stone-200 text-stone-900 text-sm focus:outline-hidden focus:ring-2 focus:ring-amber-500/20 focus:border-amber-600"
+                />
+              </div>
+
+              <div className="flex items-center justify-end space-x-3 pt-3">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddAdminModal(false);
+                    setNewAdminEmail('');
+                    setNewAdminPassword('');
+                    setNewAdminName('');
+                    setNewAdminDepartment('');
+                    setCreateAdminError(null);
+                  }}
+                  disabled={isCreatingAdmin}
+                  className="px-4 py-2.5 rounded-xl border border-stone-200 text-stone-700 text-xs font-semibold hover:bg-stone-100"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCreatingAdmin || !newAdminEmail.trim() || !newAdminPassword.trim()}
+                  className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-sm transition-all flex items-center space-x-1.5 disabled:opacity-50"
+                >
+                  {isCreatingAdmin ? (
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <Check className="w-3.5 h-3.5" />
+                  )}
+                  <span>Create Admin Account</span>
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

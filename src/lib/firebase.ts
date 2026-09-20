@@ -202,3 +202,80 @@ export async function fetchCasesFromFirestore(): Promise<CaseVignette[]> {
     return [];
   }
 }
+
+/**
+ * Delete a user and all their associated session documents from Firestore
+ */
+export async function deleteUserFromFirestore(emailOrId: string): Promise<boolean> {
+  try {
+    const db = getDb();
+    const cleanId = emailOrId.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const cleanEmail = emailOrId.toLowerCase().trim();
+
+    // 1. Delete user document
+    const userRef = doc(db, 'users', cleanId);
+    await setDoc(userRef, { deleted: true, deletedAt: serverTimestamp() }, { merge: true });
+
+    // 2. Query and delete or mark deleted their sessions
+    const sessionsCol = collection(db, 'sessions');
+    const q = query(sessionsCol, where('userEmail', '==', cleanEmail), limit(100));
+    const snap = await getDocs(q);
+    const updates = snap.docs.map((docSnap) =>
+      setDoc(docSnap.ref, { deleted: true, deletedAt: serverTimestamp() }, { merge: true })
+    );
+    await Promise.all(updates);
+    return true;
+  } catch (error) {
+    console.error('Firestore deleteUser error:', error);
+    return false;
+  }
+}
+
+/**
+ * Reset a user's password in Firestore
+ */
+export async function resetUserPasswordInFirestore(email: string, newPassword: string): Promise<boolean> {
+  try {
+    const db = getDb();
+    const cleanId = email.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const userRef = doc(db, 'users', cleanId);
+    await setDoc(
+      userRef,
+      {
+        password: newPassword,
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+    return true;
+  } catch (error) {
+    console.error('Firestore resetUserPassword error:', error);
+    return false;
+  }
+}
+
+/**
+ * Update user's admin role in Firestore
+ */
+export async function updateUserAdminRoleInFirestore(email: string, isAdmin: boolean): Promise<boolean> {
+  try {
+    const db = getDb();
+    const cleanId = email.toLowerCase().replace(/[^a-z0-9]/g, '_');
+    const userRef = doc(db, 'users', cleanId);
+    await setDoc(
+      userRef,
+      {
+        isAdmin,
+        role: isAdmin ? 'admin' : 'trainee',
+        updatedAt: serverTimestamp(),
+      },
+      { merge: true }
+    );
+    return true;
+  } catch (error) {
+    console.error('Firestore updateUserAdminRole error:', error);
+    return false;
+  }
+}
+
+

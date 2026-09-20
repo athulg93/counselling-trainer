@@ -30,7 +30,7 @@ export interface UserProfile {
 
 export interface UserTransactionEvent {
   id: string;
-  type: 'registration' | 'session_completed' | 'premium_granted' | 'premium_revoked' | 'login';
+  type: 'registration' | 'session_completed' | 'premium_granted' | 'premium_revoked' | 'login' | 'audit_event' | 'user_registration' | string;
   timestamp: string;
   title: string;
   details?: string;
@@ -63,6 +63,8 @@ export interface StoredSessionRecord {
   messages: ChatMessage[];
   stats?: DeterministicSessionStats;
   evaluation?: EvaluationResult | null;
+  deleted?: boolean;
+  type?: string;
 }
 
 export interface CaseVignette {
@@ -142,6 +144,9 @@ export interface Phase2EvaluationDetails {
   strengths: string[];
   areasForGrowth: string[];
   criticalTurns: CriticalTurnMoment[];
+  empathyMarkersObserved?: string[];
+  empathyRating?: string;
+  nonJudgmentalStance?: string;
   cbtDistortionIdentified?: boolean;
   cbtDistortionName?: string;
   distortionAnalysis?: string;

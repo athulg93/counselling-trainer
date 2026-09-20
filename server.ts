@@ -380,7 +380,15 @@ app.post('/api/supervisor/evaluate', async (req, res) => {
      - DEDUCT 4-8 points from Question Quality and 4-8 points from Rupture/Modality fidelity. DO NOT give a top score or flawless review if the counselor wandered off track!
    - If counselor stayed focused on the presenting problem: Set goalDriftObserved: false and provide affirming feedback in goalDriftDetails.
 
-2. CLIENT DEFENSIVE RUPTURES & DISTANCE EVENTS (COUNT & LOG):
+2. EMPATHY MARKERS & NON-JUDGMENTAL LANGUAGE AUDIT (CORE COUNSELING COMPETENCY):
+   - Empathy Markers: Check how effectively the counselor used affective naming, emotional validation, and reflective attunement (e.g., "It sounds like you felt completely dismissed", "I can hear the exhaustion in your voice", reflecting feelings rather than merely asking interrogative questions).
+   - Non-Judgmental Language: Check for unconditional positive regard. Deduct points if the counselor displayed judgment, moralizing, invalidating remarks (e.g. "That's not so bad", "You shouldn't feel that way", "Why did you do that?"), or unsolicited scolding.
+   - SCORING IMPACT:
+     - High Empathy & Pure Non-Judgmental Stance: Award top rubric marks for Relational Attunement / Rupture & Repair.
+     - Low Empathy (Interrogative only, purely intellectual, or advice-heavy): Deduct 4-8 points from Relational Attunement.
+     - Judgmental or Invalidating Phrasing: Deduct 8-12 points and flag in areas for growth.
+
+3. CLIENT DEFENSIVE RUPTURES & DISTANCE EVENTS (COUNT & LOG):
    - Count the EXACT number of times the counselor's interventions caused the patient to move away from them, become defensive, reduce their friendliness/warmth, give terse/closed answers, or display somatic withdrawal (e.g. looking away, crossing arms, sighing, pulling back) -> set as "clientDistanceEventsCount".
    - In phase2Details.relationalDistanceEvents, list each specific instance with { turn, counselorStatement, clientReaction, triggerCause }.
    - SCORING IMPACT:
@@ -421,9 +429,12 @@ Provide a comprehensive, high-depth supervisory report including:
 3. areasForGrowth: 3-4 targeted growth vectors with actionable deliberate practice instructions (specifically noting any goal deviations or distance triggers).
 4. criticalTurns: 3-5 pivotal moments in the dialogue. For each moment, provide turn, speaker, verbatim quote, clinical observation, type (rapport_expansion, rupture, repair, referral_cue, advice_timing, distortion, goal_drift), and recommendedAlternate (a word-for-word superior rephrasing or alternative intervention illustrating expert supervision).
 5. relationalDistanceEvents: Array of all moments where the patient pulled back or grew defensive.
-6. cbtDistortionIdentified, cbtDistortionName, and distortionAnalysis explaining how the client's cognitive distortions manifested and were addressed.
-7. allianceAssessment: bond, goalConsensus, ruptureHandling, and emotionalDistanceIndex evaluations.
-8. deliberatePracticeRecommendations: 2-3 concrete skill drills for the counselor before their next session.
+6. empathyMarkersObserved: Array of verbatim quotes where counselor demonstrated emotional validation and affective attunement.
+7. empathyRating: Qualitative assessment of counselor's empathetic depth (e.g. Exceptional, Strong, Developing, or Needs Growth with explanation).
+8. nonJudgmentalStance: Qualitative assessment of counselor's non-judgmental posture, unconditional positive regard, and absence of moralizing/invalidating statements.
+9. cbtDistortionIdentified, cbtDistortionName, and distortionAnalysis explaining how the client's cognitive distortions manifested and were addressed.
+10. allianceAssessment: bond, goalConsensus, ruptureHandling, and emotionalDistanceIndex evaluations.
+11. deliberatePracticeRecommendations: 2-3 concrete skill drills for the counselor before their next session.
 
 ### COMPLETE TRANSCRIPT:
 ${transcript.map((m: any, idx: number) => `Turn ${m.turnNumber || Math.floor(idx / 2) + 1} [${m.role.toUpperCase()}]: ${m.text}`).join('\n')}
@@ -516,6 +527,13 @@ Evaluate the interaction with clinical rigor.`;
                     required: ['turn', 'counselorStatement', 'clientReaction', 'triggerCause'],
                   },
                 },
+                empathyMarkersObserved: {
+                  type: Type.ARRAY,
+                  items: { type: Type.STRING },
+                  description: 'Verbatim quotes of counselor demonstrating emotional attunement and validation',
+                },
+                empathyRating: { type: Type.STRING, description: 'Evaluation of empathetic depth and attunement' },
+                nonJudgmentalStance: { type: Type.STRING, description: 'Evaluation of unconditional positive regard and lack of judgment' },
                 cbtDistortionIdentified: { type: Type.BOOLEAN },
                 cbtDistortionName: { type: Type.STRING },
                 distortionAnalysis: { type: Type.STRING, description: 'Detailed analysis of patient distortions and reframing attempts' },
@@ -685,6 +703,12 @@ Evaluate the interaction with clinical rigor.`;
             ruptureHandling: distanceCount > 0 ? `${distanceCount} moments of client resistance surfaced during the dialogue.` : 'Smooth collaboration without major defensive ruptures.',
             emotionalDistanceIndex: distanceCount > 0 ? `Mild to moderate resistance (${distanceCount} instances)` : 'Low relational distance / High rapport',
           },
+          empathyMarkersObserved: [
+            'Active listening and validation of client presenting concerns.',
+            'Reflective pacing allowing patient space to elaborate.',
+          ],
+          empathyRating: 'Competent empathetic attunement with foundational emotional validation.',
+          nonJudgmentalStance: 'Maintained unconditional positive regard with zero moralizing or invalidating language observed.',
           cbtDistortionIdentified: false,
         },
         deterministicStats: stats,
@@ -974,31 +998,49 @@ app.post('/api/users/register', (req, res) => {
     const records = readDb();
     const cleanEmail = user.email ? String(user.email).trim().toLowerCase() : '';
 
-    // Check if user already exists and if premium is already granted
+    // Check if user already exists in any records
     let existingPremium = false;
-    let existingRecord = records.find(
+    let existingLevel = user.level || 'Beginner';
+    let existingId = user.id || `user_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
+    let existingRegisteredAt = user.registeredAt || new Date().toISOString();
+
+    const matchedRecord = records.find(
       (r: any) => (r.user?.email && r.user.email.toLowerCase() === cleanEmail) || (r.user?.id && r.user.id === user.id)
     );
 
-    if (existingRecord && existingRecord.user?.isPremium) {
-      existingPremium = true;
+    if (matchedRecord && matchedRecord.user) {
+      if (matchedRecord.user.isPremium) existingPremium = true;
+      if (matchedRecord.user.level && (!user.level || user.level === 'Beginner')) {
+        existingLevel = matchedRecord.user.level;
+      }
+      if (matchedRecord.user.id) existingId = matchedRecord.user.id;
+      if (matchedRecord.user.registeredAt) existingRegisteredAt = matchedRecord.user.registeredAt;
     }
 
-    // Merge in current premium flag if previously granted
     const finalizedUser = {
       ...user,
+      id: existingId,
+      level: existingLevel,
+      registeredAt: existingRegisteredAt,
       isPremium: existingPremium || !!user.isPremium,
     };
 
-    if (!existingRecord) {
+    if (!matchedRecord) {
       // Create initial registration record
       records.unshift({
-        id: `reg_${user.id || Date.now()}`,
-        timestamp: user.registeredAt || new Date().toISOString(),
+        id: `reg_${finalizedUser.id}`,
+        timestamp: finalizedUser.registeredAt,
         user: finalizedUser,
         type: 'user_registration',
         messages: [],
       });
+      writeDb(records);
+    } else {
+      // Update existing record user info with new name/password
+      matchedRecord.user = {
+        ...matchedRecord.user,
+        ...finalizedUser,
+      };
       writeDb(records);
     }
 
@@ -1110,52 +1152,92 @@ app.get('/api/sessions/stats', (_req, res) => {
 });
 
 // ----------------------------------------------------
-// Admin Authentication & Access Control
+// Admin Authentication & Multi-Admin Access Control
 // ----------------------------------------------------
 const ADMIN_AUTH_FILE = path.join(DB_DIR, 'admin_auth.json');
 
-interface AdminCredentials {
+export interface AdminAccount {
+  id: string;
   email: string;
+  name: string;
   password: string;
+  role: 'admin';
+  isMaster?: boolean;
+  institution?: string;
+  createdAt: string;
   updatedAt?: string;
 }
 
-const DEFAULT_ADMIN_CREDENTIALS: AdminCredentials = {
+const DEFAULT_MASTER_ADMIN: AdminAccount = {
+  id: 'admin_athul',
   email: 'athulgovind.1993@gmail.com',
+  name: 'Athul Govind',
   password: 'Password@123',
+  role: 'admin',
+  isMaster: true,
+  institution: 'Executive Clinical Leadership',
+  createdAt: '2026-01-01T00:00:00.000Z',
 };
 
-function getAdminCredentials(): AdminCredentials {
+function getAdminAccounts(): AdminAccount[] {
   try {
     if (fs.existsSync(ADMIN_AUTH_FILE)) {
       const data = fs.readFileSync(ADMIN_AUTH_FILE, 'utf-8');
       const parsed = JSON.parse(data);
-      if (parsed && typeof parsed.password === 'string' && parsed.password.trim().length > 0) {
-        return {
-          email: parsed.email || DEFAULT_ADMIN_CREDENTIALS.email,
-          password: parsed.password,
-          updatedAt: parsed.updatedAt,
-        };
+
+      // If array or { admins: [] }
+      let list: AdminAccount[] = [];
+      if (Array.isArray(parsed)) {
+        list = parsed;
+      } else if (parsed && Array.isArray(parsed.admins)) {
+        list = parsed.admins;
+      } else if (parsed && typeof parsed.password === 'string') {
+        // Legacy single admin format
+        list = [
+          {
+            ...DEFAULT_MASTER_ADMIN,
+            email: parsed.email || DEFAULT_MASTER_ADMIN.email,
+            password: parsed.password,
+            updatedAt: parsed.updatedAt,
+          },
+        ];
       }
+
+      // Ensure Master Admin always exists
+      const hasMaster = list.some(
+        (a) => a.email.toLowerCase() === DEFAULT_MASTER_ADMIN.email.toLowerCase()
+      );
+      if (!hasMaster) {
+        list.unshift(DEFAULT_MASTER_ADMIN);
+      } else {
+        // Ensure master flag
+        list = list.map((a) =>
+          a.email.toLowerCase() === DEFAULT_MASTER_ADMIN.email.toLowerCase()
+            ? { ...a, isMaster: true, name: a.name || 'Athul Govind' }
+            : a
+        );
+      }
+      return list;
     }
   } catch (err) {
-    console.error('Error reading admin credentials from file:', err);
+    console.error('Error reading admin accounts from file:', err);
   }
-  return DEFAULT_ADMIN_CREDENTIALS;
+  return [DEFAULT_MASTER_ADMIN];
 }
 
-function saveAdminCredentials(creds: AdminCredentials) {
+function saveAdminAccounts(admins: AdminAccount[]) {
   try {
     if (!fs.existsSync(DB_DIR)) {
       fs.mkdirSync(DB_DIR, { recursive: true });
     }
-    fs.writeFileSync(ADMIN_AUTH_FILE, JSON.stringify(creds, null, 2), 'utf-8');
+    fs.writeFileSync(ADMIN_AUTH_FILE, JSON.stringify({ admins }, null, 2), 'utf-8');
   } catch (err) {
-    console.error('Error saving admin credentials:', err);
+    console.error('Error saving admin accounts:', err);
     throw err;
   }
 }
 
+// Admin login: Authenticate ANY registered administrator
 app.post('/api/admin/login', (req, res) => {
   try {
     const { email, password } = req.body;
@@ -1165,30 +1247,58 @@ app.post('/api/admin/login', (req, res) => {
 
     const cleanEmail = String(email).trim().toLowerCase();
     const cleanPassword = String(password).trim();
-    const currentCreds = getAdminCredentials();
+    const adminAccounts = getAdminAccounts();
 
-    if (
-      cleanEmail === currentCreds.email.toLowerCase() &&
-      cleanPassword === currentCreds.password
-    ) {
-      // Successful admin login
+    // 1. Check in admin_auth.json
+    let matchingAdmin = adminAccounts.find(
+      (a) => a.email.toLowerCase() === cleanEmail && a.password === cleanPassword
+    );
+
+    // 2. Also check in conversations_db.json for users marked with isAdmin / role: 'admin'
+    if (!matchingAdmin) {
+      const records = readDb();
+      for (const rec of records) {
+        if (
+          rec.user?.email &&
+          rec.user.email.toLowerCase() === cleanEmail &&
+          (rec.user.isAdmin || rec.user.role === 'admin') &&
+          rec.user.password &&
+          rec.user.password === cleanPassword
+        ) {
+          matchingAdmin = {
+            id: rec.user.id || `admin_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+            name: rec.user.name || cleanEmail.split('@')[0],
+            email: cleanEmail,
+            password: cleanPassword,
+            role: 'admin',
+            isMaster: cleanEmail === DEFAULT_MASTER_ADMIN.email.toLowerCase(),
+            institution: rec.user.institution || 'Clinical Training Faculty',
+            createdAt: rec.user.registeredAt || new Date().toISOString(),
+          };
+          break;
+        }
+      }
+    }
+
+    if (matchingAdmin) {
       const adminProfile = {
-        id: 'admin_athul',
-        name: 'Athul Govind',
-        email: currentCreds.email,
+        id: matchingAdmin.id,
+        name: matchingAdmin.name,
+        email: matchingAdmin.email,
         role: 'admin',
         isAdmin: true,
+        isMaster: Boolean(matchingAdmin.isMaster || matchingAdmin.email.toLowerCase() === DEFAULT_MASTER_ADMIN.email.toLowerCase()),
         level: 'Administrator',
-        institution: 'Executive Clinical Leadership',
-        registeredAt: new Date().toISOString(),
+        institution: matchingAdmin.institution || 'Clinical Training Faculty',
+        registeredAt: matchingAdmin.createdAt || new Date().toISOString(),
       };
 
-      // Also ensure Athul Govind is recorded in user records if needed
+      // Ensure record in DB
       const records = readDb();
-      const existing = records.find((r: any) => r.user?.email === currentCreds.email);
+      const existing = records.find((r: any) => r.user?.email?.toLowerCase() === cleanEmail);
       if (!existing) {
         records.unshift({
-          id: `reg_admin_athul`,
+          id: `reg_${matchingAdmin.id}`,
           timestamp: new Date().toISOString(),
           user: adminProfile,
           type: 'user_registration',
@@ -1211,25 +1321,301 @@ app.post('/api/admin/login', (req, res) => {
   }
 });
 
-// Admin: Get credential status (no sensitive password exposed)
+// Admin: List all administrators
+app.get('/api/admin/admins', (_req, res) => {
+  try {
+    const adminAccounts = getAdminAccounts();
+    const safeList = adminAccounts.map((a) => ({
+      id: a.id,
+      email: a.email,
+      name: a.name,
+      role: a.role,
+      isMaster: Boolean(a.isMaster || a.email.toLowerCase() === DEFAULT_MASTER_ADMIN.email.toLowerCase()),
+      institution: a.institution || 'Clinical Training Faculty',
+      createdAt: a.createdAt,
+      updatedAt: a.updatedAt || null,
+    }));
+    res.json({ admins: safeList });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to retrieve administrators list' });
+  }
+});
+
+// Admin: Create a new administrator account
+app.post('/api/admin/create-admin', (req, res) => {
+  try {
+    const { email, name, password, institution } = req.body;
+    if (!email || !password || !name) {
+      return res.status(400).json({ error: 'Name, email, and password are required' });
+    }
+
+    const cleanEmail = String(email).trim().toLowerCase();
+    const cleanName = String(name).trim();
+    const cleanPassword = String(password).trim();
+
+    if (!cleanEmail.includes('@')) {
+      return res.status(400).json({ error: 'Please provide a valid email address' });
+    }
+    if (cleanPassword.length < 4) {
+      return res.status(400).json({ error: 'Password must be at least 4 characters long' });
+    }
+
+    const adminAccounts = getAdminAccounts();
+    const existingIndex = adminAccounts.findIndex((a) => a.email.toLowerCase() === cleanEmail);
+
+    const now = new Date().toISOString();
+    const newAdmin: AdminAccount = {
+      id: `admin_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+      email: cleanEmail,
+      name: cleanName,
+      password: cleanPassword,
+      role: 'admin',
+      isMaster: cleanEmail === DEFAULT_MASTER_ADMIN.email.toLowerCase(),
+      institution: institution ? String(institution).trim() : 'Clinical Supervision Faculty',
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    if (existingIndex >= 0) {
+      // Update existing admin account
+      adminAccounts[existingIndex] = {
+        ...adminAccounts[existingIndex],
+        name: cleanName,
+        password: cleanPassword,
+        institution: newAdmin.institution,
+        updatedAt: now,
+      };
+    } else {
+      adminAccounts.push(newAdmin);
+    }
+
+    saveAdminAccounts(adminAccounts);
+
+    // Also sync into conversations_db.json
+    const records = readDb();
+    let foundInDb = false;
+    for (const rec of records) {
+      if (rec.user?.email && rec.user.email.toLowerCase() === cleanEmail) {
+        rec.user.isAdmin = true;
+        rec.user.role = 'admin';
+        rec.user.name = cleanName;
+        rec.user.password = cleanPassword;
+        rec.user.institution = newAdmin.institution;
+        foundInDb = true;
+      }
+    }
+
+    if (!foundInDb) {
+      records.unshift({
+        id: `reg_${newAdmin.id}`,
+        timestamp: now,
+        user: {
+          id: newAdmin.id,
+          name: cleanName,
+          email: cleanEmail,
+          password: cleanPassword,
+          role: 'admin',
+          isAdmin: true,
+          level: 'Administrator',
+          institution: newAdmin.institution,
+          registeredAt: now,
+        },
+        type: 'user_registration',
+        messages: [],
+      });
+    }
+
+    // Add audit event
+    records.unshift({
+      id: `audit_admin_created_${Date.now()}`,
+      type: 'audit_event',
+      eventType: 'admin_created',
+      timestamp: now,
+      user: {
+        email: cleanEmail,
+        name: cleanName,
+        isAdmin: true,
+      },
+      note: `Administrator privileges created for ${cleanEmail} (${cleanName})`,
+    });
+
+    writeDb(records);
+
+    res.json({
+      success: true,
+      message: `Administrator account for ${cleanEmail} created successfully`,
+      admin: {
+        id: newAdmin.id,
+        email: newAdmin.email,
+        name: newAdmin.name,
+        role: newAdmin.role,
+        isMaster: newAdmin.isMaster,
+        institution: newAdmin.institution,
+      },
+    });
+  } catch (err: any) {
+    console.error('Error creating admin account:', err);
+    res.status(500).json({ error: 'Failed to create administrator account' });
+  }
+});
+
+// Admin: Toggle administrator role for any existing user
+app.post('/api/admin/toggle-admin-role', (req, res) => {
+  try {
+    const { email, isAdmin } = req.body;
+    if (!email) {
+      return res.status(400).json({ error: 'User email is required' });
+    }
+
+    const cleanEmail = String(email).trim().toLowerCase();
+    const shouldBeAdmin = Boolean(isAdmin);
+
+    if (cleanEmail === DEFAULT_MASTER_ADMIN.email.toLowerCase() && !shouldBeAdmin) {
+      return res.status(400).json({ error: 'The Master Administrator cannot be demoted.' });
+    }
+
+    const adminAccounts = getAdminAccounts();
+    const records = readDb();
+    let userName = '';
+    let userPassword = '';
+
+    for (const rec of records) {
+      if (rec.user?.email && rec.user.email.toLowerCase() === cleanEmail) {
+        rec.user.isAdmin = shouldBeAdmin;
+        rec.user.role = shouldBeAdmin ? 'admin' : 'trainee';
+        if (rec.user.name && !userName) userName = rec.user.name;
+        if (rec.user.password && !userPassword) userPassword = rec.user.password;
+      }
+    }
+
+    if (shouldBeAdmin) {
+      // Add to adminAccounts if not already there
+      const exists = adminAccounts.find((a) => a.email.toLowerCase() === cleanEmail);
+      if (!exists) {
+        adminAccounts.push({
+          id: `admin_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+          email: cleanEmail,
+          name: userName || cleanEmail.split('@')[0],
+          password: userPassword || 'Password@123',
+          role: 'admin',
+          isMaster: false,
+          institution: 'Clinical Faculty',
+          createdAt: new Date().toISOString(),
+        });
+      }
+    } else {
+      // Remove from adminAccounts if not master
+      const filtered = adminAccounts.filter((a) => a.email.toLowerCase() !== cleanEmail);
+      saveAdminAccounts(filtered);
+    }
+
+    if (shouldBeAdmin) {
+      saveAdminAccounts(adminAccounts);
+    }
+
+    // Add audit event
+    records.unshift({
+      id: `audit_role_${Date.now()}`,
+      type: 'audit_event',
+      eventType: shouldBeAdmin ? 'admin_role_granted' : 'admin_role_revoked',
+      timestamp: new Date().toISOString(),
+      user: {
+        email: cleanEmail,
+        name: userName || cleanEmail,
+        isAdmin: shouldBeAdmin,
+      },
+      note: shouldBeAdmin
+        ? `Administrator privileges granted to ${cleanEmail}`
+        : `Administrator privileges revoked for ${cleanEmail}`,
+    });
+
+    writeDb(records);
+
+    res.json({
+      success: true,
+      email: cleanEmail,
+      isAdmin: shouldBeAdmin,
+      message: shouldBeAdmin
+        ? `Granted administrator access to ${cleanEmail}`
+        : `Revoked administrator access for ${cleanEmail}`,
+    });
+  } catch (err: any) {
+    console.error('Error toggling admin role:', err);
+    res.status(500).json({ error: 'Failed to update user admin role' });
+  }
+});
+
+// Admin: Delete an administrator account
+app.delete('/api/admin/admins/:email', (req, res) => {
+  try {
+    const { email } = req.params;
+    if (!email) {
+      return res.status(400).json({ error: 'Admin email is required' });
+    }
+
+    const cleanEmail = decodeURIComponent(email).trim().toLowerCase();
+
+    if (cleanEmail === DEFAULT_MASTER_ADMIN.email.toLowerCase()) {
+      return res.status(400).json({ error: 'The Master Administrator account cannot be deleted.' });
+    }
+
+    const adminAccounts = getAdminAccounts();
+    const updatedAdmins = adminAccounts.filter((a) => a.email.toLowerCase() !== cleanEmail);
+    saveAdminAccounts(updatedAdmins);
+
+    // Update records in conversations_db.json
+    const records = readDb();
+    for (const rec of records) {
+      if (rec.user?.email && rec.user.email.toLowerCase() === cleanEmail) {
+        rec.user.isAdmin = false;
+        rec.user.role = 'trainee';
+      }
+    }
+
+    records.unshift({
+      id: `audit_admin_del_${Date.now()}`,
+      type: 'audit_event',
+      eventType: 'admin_removed',
+      timestamp: new Date().toISOString(),
+      user: {
+        email: cleanEmail,
+      },
+      note: `Administrator privileges removed for ${cleanEmail}`,
+    });
+
+    writeDb(records);
+
+    res.json({
+      success: true,
+      message: `Administrator access removed for ${cleanEmail}`,
+    });
+  } catch (err: any) {
+    console.error('Error deleting admin:', err);
+    res.status(500).json({ error: 'Failed to delete administrator' });
+  }
+});
+
+// Admin: Get credential status
 app.get('/api/admin/credentials/status', (req, res) => {
   try {
-    const creds = getAdminCredentials();
-    const isCustom = creds.password !== DEFAULT_ADMIN_CREDENTIALS.password;
+    const adminAccounts = getAdminAccounts();
+    const master = adminAccounts.find((a) => a.isMaster) || adminAccounts[0];
+    const isCustom = master.password !== DEFAULT_MASTER_ADMIN.password;
     res.json({
-      email: creds.email,
+      email: master.email,
+      totalAdmins: adminAccounts.length,
       hasCustomPassword: isCustom,
-      lastUpdatedAt: creds.updatedAt || null,
+      lastUpdatedAt: master.updatedAt || null,
     });
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to retrieve credentials status' });
   }
 });
 
-// Admin: Change password
+// Admin: Change password for an administrator
 app.post('/api/admin/change-password', (req, res) => {
   try {
-    const { currentPassword, newPassword, confirmPassword } = req.body;
+    const { email, currentPassword, newPassword, confirmPassword } = req.body;
 
     if (!currentPassword || !newPassword) {
       return res.status(400).json({ error: 'Current password and new password are both required.' });
@@ -1238,6 +1624,7 @@ app.post('/api/admin/change-password', (req, res) => {
     const cleanCurrent = String(currentPassword).trim();
     const cleanNew = String(newPassword).trim();
     const cleanConfirm = confirmPassword !== undefined ? String(confirmPassword).trim() : cleanNew;
+    const targetEmail = email ? String(email).trim().toLowerCase() : DEFAULT_MASTER_ADMIN.email.toLowerCase();
 
     if (cleanNew.length < 6) {
       return res.status(400).json({ error: 'New password must be at least 6 characters in length.' });
@@ -1247,40 +1634,54 @@ app.post('/api/admin/change-password', (req, res) => {
       return res.status(400).json({ error: 'New password and password confirmation do not match.' });
     }
 
-    const currentCreds = getAdminCredentials();
+    const adminAccounts = getAdminAccounts();
+    const targetAdminIndex = adminAccounts.findIndex((a) => a.email.toLowerCase() === targetEmail);
+
+    if (targetAdminIndex === -1) {
+      return res.status(404).json({ error: 'Administrator account not found.' });
+    }
+
+    const targetAdmin = adminAccounts[targetAdminIndex];
 
     // Verify current password
-    if (cleanCurrent !== currentCreds.password) {
+    if (cleanCurrent !== targetAdmin.password) {
       return res.status(401).json({ error: 'The current administrator password you entered is incorrect.' });
     }
 
-    if (cleanNew === currentCreds.password) {
+    if (cleanNew === targetAdmin.password) {
       return res.status(400).json({ error: 'The new password cannot be the same as your current password.' });
     }
 
     const updatedAt = new Date().toISOString();
-    const updatedCreds: AdminCredentials = {
-      email: currentCreds.email,
+    adminAccounts[targetAdminIndex] = {
+      ...targetAdmin,
       password: cleanNew,
       updatedAt,
     };
 
-    saveAdminCredentials(updatedCreds);
+    saveAdminAccounts(adminAccounts);
+
+    // Sync in DB
+    const records = readDb();
+    for (const rec of records) {
+      if (rec.user?.email && rec.user.email.toLowerCase() === targetEmail) {
+        rec.user.password = cleanNew;
+      }
+    }
 
     // Record audit event in local DB
     try {
-      const records = readDb();
       records.unshift({
         id: `audit_pwd_${Date.now()}`,
         type: 'audit_event',
         eventType: 'admin_password_changed',
         timestamp: updatedAt,
         user: {
-          email: currentCreds.email,
-          name: 'Athul Govind',
+          email: targetAdmin.email,
+          name: targetAdmin.name,
           isAdmin: true,
         },
-        note: `Administrator security credentials updated by Athul Govind on ${new Date().toLocaleString()}`,
+        note: `Administrator security credentials updated for ${targetAdmin.email} on ${new Date().toLocaleString()}`,
       });
       writeDb(records);
     } catch (auditErr) {
@@ -1513,6 +1914,168 @@ app.post('/api/admin/users/toggle-premium', (req, res) => {
     res.status(500).json({ error: 'Failed to update user premium status' });
   }
 });
+
+// Admin: Delete user and all associated records (sessions, logs, registrations)
+app.delete('/api/admin/users/:emailOrId', (req, res) => {
+  try {
+    const { emailOrId } = req.params;
+    if (!emailOrId) {
+      return res.status(400).json({ error: 'User email or ID required' });
+    }
+
+    const clean = decodeURIComponent(emailOrId).trim().toLowerCase();
+    const records = readDb();
+    const initialLen = records.length;
+
+    // Filter out all records matching user email or user id
+    const filteredRecords = records.filter((rec) => {
+      const uEmail = (rec.user?.email || '').toLowerCase().trim();
+      const uId = (rec.user?.id || '').toLowerCase().trim();
+      return uEmail !== clean && uId !== clean;
+    });
+
+    const deletedCount = initialLen - filteredRecords.length;
+
+    // Log deletion event
+    filteredRecords.unshift({
+      id: `audit_del_${Date.now()}`,
+      type: 'audit_event',
+      eventType: 'user_deleted_by_admin',
+      timestamp: new Date().toISOString(),
+      user: {
+        email: clean,
+        name: 'Deleted User',
+      },
+      note: `User record and all associated sessions/logs for ${clean} were deleted by Administrator Athul Govind`,
+    });
+
+    writeDb(filteredRecords);
+
+    res.json({
+      success: true,
+      message: `User ${clean} and associated records deleted successfully`,
+      deletedCount,
+    });
+  } catch (error: any) {
+    console.error('Error deleting user:', error);
+    res.status(500).json({ error: 'Failed to delete user and records' });
+  }
+});
+
+// Admin: Reset password for any user
+app.post('/api/admin/users/reset-password', (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+    if (!email || !newPassword) {
+      return res.status(400).json({ error: 'User email and new password are required' });
+    }
+
+    const cleanEmail = String(email).trim().toLowerCase();
+    const cleanPassword = String(newPassword).trim();
+
+    if (cleanPassword.length < 4) {
+      return res.status(400).json({ error: 'Password must be at least 4 characters long' });
+    }
+
+    const records = readDb();
+    let updatedCount = 0;
+    let userName = '';
+
+    for (const rec of records) {
+      if (rec.user?.email && rec.user.email.toLowerCase() === cleanEmail) {
+        rec.user.password = cleanPassword;
+        if (rec.user.name && !userName) userName = rec.user.name;
+        updatedCount++;
+      }
+    }
+
+    if (updatedCount === 0) {
+      records.unshift({
+        id: `reg_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+        timestamp: new Date().toISOString(),
+        user: {
+          id: `user_${cleanEmail.replace(/[^a-zA-Z0-9]/g, '_')}`,
+          name: cleanEmail.split('@')[0],
+          email: cleanEmail,
+          password: cleanPassword,
+          level: 'Beginner',
+          registeredAt: new Date().toISOString(),
+          isAdmin: false,
+          role: 'trainee',
+        },
+        type: 'user_registration',
+        messages: [],
+      });
+      updatedCount = 1;
+    }
+
+    // Add audit event
+    records.unshift({
+      id: `audit_pwd_${Date.now()}`,
+      type: 'audit_event',
+      eventType: 'user_password_reset_by_admin',
+      timestamp: new Date().toISOString(),
+      user: {
+        email: cleanEmail,
+        name: userName || cleanEmail,
+      },
+      note: `Password for ${cleanEmail} was reset by Administrator Athul Govind`,
+    });
+
+    writeDb(records);
+
+    res.json({
+      success: true,
+      message: `Password for ${cleanEmail} was successfully reset.`,
+      email: cleanEmail,
+    });
+  } catch (error: any) {
+    console.error('Error resetting user password:', error);
+    res.status(500).json({ error: 'Failed to reset user password' });
+  }
+});
+
+// Trainee: Self-Service Password Reset
+app.post('/api/users/reset-password', (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+    if (!email || !newPassword) {
+      return res.status(400).json({ error: 'Email and new password are required' });
+    }
+
+    const cleanEmail = String(email).trim().toLowerCase();
+    const cleanPassword = String(newPassword).trim();
+
+    if (cleanPassword.length < 4) {
+      return res.status(400).json({ error: 'Password must be at least 4 characters long' });
+    }
+
+    const records = readDb();
+    let userFound = false;
+
+    for (const rec of records) {
+      if (rec.user?.email && rec.user.email.toLowerCase() === cleanEmail) {
+        rec.user.password = cleanPassword;
+        userFound = true;
+      }
+    }
+
+    if (!userFound) {
+      return res.status(404).json({ error: 'No account found with this email address.' });
+    }
+
+    writeDb(records);
+
+    res.json({
+      success: true,
+      message: 'Password successfully updated! You can now sign in with your new password.',
+    });
+  } catch (error: any) {
+    console.error('Error in self-service password reset:', error);
+    res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
 
 // Admin: Full Database Backup Download (JSON)
 app.get('/api/admin/backup/download', (_req, res) => {

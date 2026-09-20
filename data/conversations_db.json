@@ -1,5 +1,47 @@
 [
   {
+    "id": "reg_user_test123_gmail_com",
+    "timestamp": "2026-09-20T02:30:17.067Z",
+    "user": {
+      "id": "user_test123_gmail_com",
+      "name": "test",
+      "email": "test123@gmail.com",
+      "password": "test12345",
+      "level": "Beginner",
+      "registeredAt": "2026-09-20T02:30:17.067Z",
+      "isAdmin": false,
+      "role": "trainee",
+      "isPremium": false
+    },
+    "type": "user_registration",
+    "messages": []
+  },
+  {
+    "id": "reg_user_google_gmail_com",
+    "timestamp": "2026-09-20T02:10:49.749Z",
+    "user": {
+      "id": "user_google_gmail_com",
+      "name": "Test user",
+      "email": "google@gmail.com",
+      "password": "Password@123",
+      "level": "Beginner",
+      "registeredAt": "2026-09-20T02:10:49.749Z",
+      "isAdmin": false,
+      "role": "trainee",
+      "isPremium": false,
+      "institution": "",
+      "premiumGrantedAt": null,
+      "lastActiveAt": "2026-09-20T02:12:14.687Z",
+      "updatedAt": {
+        "type": "firestore/timestamp/1.0",
+        "seconds": 1789870250,
+        "nanoseconds": 375000000
+      }
+    },
+    "type": "user_registration",
+    "messages": []
+  },
+  {
     "id": "reg_user_1789806202454",
     "timestamp": "2026-09-19T08:23:22.454Z",
     "user": {

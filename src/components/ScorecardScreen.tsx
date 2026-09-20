@@ -31,6 +31,7 @@ interface ScorecardScreenProps {
   messages: ChatMessage[];
   onRetryScenario: () => void;
   onNewScenario: () => void;
+  onOpenDashboard?: () => void;
   currentUser?: UserProfile | null;
 }
 
@@ -40,6 +41,7 @@ export const ScorecardScreen: React.FC<ScorecardScreenProps> = ({
   messages,
   onRetryScenario,
   onNewScenario,
+  onOpenDashboard,
   currentUser,
 }) => {
   const isPremiumOrAdmin = Boolean(currentUser?.isPremium || currentUser?.isAdmin);
@@ -145,17 +147,14 @@ export const ScorecardScreen: React.FC<ScorecardScreenProps> = ({
               <span>
                 Case: <strong className="text-stone-700">{vignette.title}</strong> • {vignette.difficulty.toUpperCase()} Level
               </span>
-              <span>•</span>
-              {currentUser?.isPremium ? (
-                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
-                  <Crown className="w-3 h-3 text-amber-700" />
-                  <span>Premium Tier Active</span>
-                </span>
-              ) : (
-                <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 text-teal-800 border border-teal-200">
-                  <Sparkles className="w-3 h-3 text-teal-700" />
-                  <span>Free Tier (Standard)</span>
-                </span>
+              {currentUser?.isPremium && (
+                <>
+                  <span>•</span>
+                  <span className="inline-flex items-center space-x-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+                    <Crown className="w-3 h-3 text-amber-700" />
+                    <span>Premium Tier</span>
+                  </span>
+                </>
               )}
             </div>
           </div>
@@ -335,13 +334,23 @@ export const ScorecardScreen: React.FC<ScorecardScreenProps> = ({
       {/* Action Controls */}
       <div className="flex flex-wrap items-center justify-between gap-3 mb-8">
         <div className="flex items-center space-x-2">
+          {onOpenDashboard && (
+            <button
+              id="back-to-dashboard-btn"
+              onClick={onOpenDashboard}
+              className="inline-flex items-center space-x-1.5 px-4 py-2.5 rounded-xl bg-teal-800 hover:bg-teal-900 text-white text-xs sm:text-sm font-semibold shadow-xs transition-all"
+            >
+              <span>Back to Dashboard</span>
+            </button>
+          )}
+
           <button
             id="retry-scenario-btn"
             onClick={onRetryScenario}
-            className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs sm:text-sm font-semibold shadow-sm transition-all"
+            className="inline-flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-teal-700 hover:bg-teal-800 text-white text-xs sm:text-sm font-semibold shadow-xs transition-all"
           >
             <RotateCcw className="w-4 h-4" />
-            <span>Practice This Vignette Again</span>
+            <span>Practice Again</span>
           </button>
 
           <button
