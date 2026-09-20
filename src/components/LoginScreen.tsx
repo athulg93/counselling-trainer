@@ -22,6 +22,8 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
   // Trainee check-in state
   const [name, setName] = useState(currentUser?.name || '');
   const [email, setEmail] = useState(currentUser?.email || '');
+  const [traineePassword, setTraineePassword] = useState(currentUser?.password || '');
+  const [showTraineePassword, setShowTraineePassword] = useState(false);
   const [level, setLevel] = useState<'Beginner' | 'Intermediate' | 'Professional'>(
     currentUser?.level === 'Intermediate' ? 'Intermediate' : 'Beginner'
   );
@@ -61,6 +63,7 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
       id: currentUser?.id || `user_${Date.now()}`,
       name: name.trim(),
       email: email.trim().toLowerCase(),
+      password: traineePassword,
       level,
       registeredAt: currentUser?.registeredAt || new Date().toISOString(),
       isAdmin: false,
@@ -284,6 +287,36 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({
                       placeholder="e.g. alex.morgan@email.com"
                       className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-stone-200 text-stone-900 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-600/20 focus:border-teal-600 transition-all placeholder:text-stone-400"
                     />
+                  </div>
+                </div>
+
+                {/* Password Input */}
+                <div>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label htmlFor="user-password" className="block text-xs font-semibold text-stone-700">
+                      Password (Optional for local practice / Required for cloud sync)
+                    </label>
+                  </div>
+                  <div className="relative">
+                    <Lock className="w-4 h-4 text-stone-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                    <input
+                      id="user-password"
+                      type={showTraineePassword ? 'text' : 'password'}
+                      value={traineePassword}
+                      onChange={(e) => {
+                        setTraineePassword(e.target.value);
+                        if (error) setError(null);
+                      }}
+                      placeholder="Create or enter password"
+                      className="w-full pl-10 pr-10 py-2.5 rounded-xl border border-stone-200 text-stone-900 text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-600/20 focus:border-teal-600 transition-all placeholder:text-stone-400"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowTraineePassword(!showTraineePassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
+                    >
+                      {showTraineePassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                   </div>
                 </div>
 

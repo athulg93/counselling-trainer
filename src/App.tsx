@@ -9,6 +9,7 @@ import { InfoModal } from './components/InfoModal';
 import { IntakeBriefingModal } from './components/IntakeBriefingModal';
 import { TrainingDbModal } from './components/TrainingDbModal';
 import { CASE_VIGNETTES } from './data/vignettes';
+import { saveUserToFirestore, saveSessionToFirestore } from './lib/firebase';
 import {
   SessionConfig,
   CaseVignette,
@@ -120,6 +121,9 @@ export default function App() {
     } catch {
       // ignore
     }
+
+    // Persist registered user to Firestore Cloud Database
+    saveUserToFirestore(user).catch((err) => console.warn('Failed to save user to Firestore:', err));
 
     // Persist registered user immediately to server database
     fetch('/api/users/register', {
@@ -291,7 +295,7 @@ export default function App() {
       setEvaluationResult(result);
       setActiveView('scorecard');
 
-      // Automatically save completed session to local database for model training
+      // Automatically save completed session to Firestore Cloud Database & local store
       try {
         const sessionPayload: StoredSessionRecord = {
           id: `session_${Date.now()}`,
@@ -309,6 +313,8 @@ export default function App() {
           stats: result.deterministicStats,
           evaluation: result,
         };
+
+        saveSessionToFirestore(sessionPayload).catch((err) => console.warn('Failed to save session to Firestore:', err));
 
         fetch('/api/sessions/save', {
           method: 'POST',

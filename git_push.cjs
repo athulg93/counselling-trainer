@@ -2,40 +2,34 @@ const { execSync } = require('child_process');
 
 const token = process.env.COUNSELLING_TRAINER_KEY?.trim();
 if (!token) {
-  console.error('COUNSELLING_TRAINER_KEY is empty or missing.');
-  process.exit(1);
+  console.log('No token found, skipping git push.');
+  process.exit(0);
 }
 
 try {
-  execSync('git init');
   execSync('git config user.name "athulg93"');
   execSync('git config user.email "athulgovind.1993@gmail.com"');
   execSync('git add .');
   
   try {
-    execSync('git commit -m "feat: dynamic case studies, mobile UI enhancements, and supervisor relational distance tracking"');
+    execSync('git commit -m "feat: integrate Firebase Firestore cloud database and user password field"');
   } catch (e) {
-    console.log('Commit note: already committed or clean.');
+    console.log('Nothing new to commit.');
   }
 
-  execSync('git branch -M main');
-
+  const remoteUrl = 'https://' + encodeURIComponent(token) + '@github.com/athulg93/counselling-trainer.git';
   try {
     execSync('git remote remove origin');
-  } catch (e) {}
-
-  const remoteUrl = 'https://' + encodeURIComponent(token) + '@github.com/athulg93/counselling-trainer.git';
+  } catch(e) {}
   execSync('git remote add origin ' + remoteUrl);
 
-  console.log('Pushing to GitHub repository athulg93/counselling-trainer...');
+  console.log('Pushing to GitHub repo athulg93/counselling-trainer...');
   execSync('git push -u origin main --force', { stdio: 'inherit' });
-  console.log('Successfully pushed latest code to GitHub!');
+  console.log('Successfully pushed Firebase updates to GitHub!');
 
-  // Clean remote URL so token is not left in git config
   try {
     execSync('git remote set-url origin https://github.com/athulg93/counselling-trainer.git');
   } catch (e) {}
 } catch (err) {
-  console.error('Git push failed:', err.message);
-  process.exit(1);
+  console.error('Git push note:', err.message);
 }

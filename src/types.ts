@@ -17,11 +17,12 @@ export interface UserProfile {
   id: string;
   name: string;
   email: string;
+  password?: string;
   institution?: string;
   level?: string;
   registeredAt: string;
   isAdmin?: boolean;
-  role?: 'trainee' | 'admin';
+  role?: 'trainee' | 'student' | 'instructor' | 'admin';
   isPremium?: boolean;
   premiumGrantedAt?: string;
   lastActiveAt?: string;
