@@ -90,22 +90,28 @@ function calculateDeterministicStats(
 }
 
 // ----------------------------------------------------
-// Model Configuration & Robust Fallback Engine
+// Model Configuration & Backward-Scaling Quota Fallback Engine
 // ----------------------------------------------------
-// Model Priority: gemini-2.5-flash, gemini-2.0-flash, and gemini-1.5-flash provide instant response times
-// and maximum resilience against temporary high-demand spikes (503) on experimental models.
-// Agent 1 uses token-efficient fast conversational models across 3 fallback candidates:
+// Starts with Gemini 3.8 Flash, then automatically scales backwards (3.7 -> 3.6 -> 3.1 Flash Lite -> 2.5 Flash -> 2.5 Flash Lite -> flash-latest)
+// whenever quota limits (429 / RESOURCE_EXHAUSTED), rate limits, or transient demand spikes (503) are encountered.
 const AGENT_1_MODELS = [
+  'gemini-3.8-flash',
+  'gemini-3.7-flash',
+  'gemini-3.6-flash',
+  'gemini-3.1-flash-lite',
   'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-flash-latest',
 ];
 
-// Agent 2 uses structured JSON evaluation models across 3 fallback candidates:
 const AGENT_2_MODELS = [
+  'gemini-3.8-flash',
+  'gemini-3.7-flash',
+  'gemini-3.6-flash',
+  'gemini-3.1-flash-lite',
   'gemini-2.5-flash',
-  'gemini-2.0-flash',
-  'gemini-1.5-flash',
+  'gemini-2.5-flash-lite',
+  'gemini-flash-latest',
 ];
 
 function extractErrorMessage(err: any): string {
@@ -130,11 +136,17 @@ function isTransientError(err: any): boolean {
   return (
     code === 503 ||
     code === 429 ||
+    code === 404 ||
     msg.includes('503') ||
+    msg.includes('429') ||
+    msg.includes('404') ||
     msg.includes('high demand') ||
     msg.includes('UNAVAILABLE') ||
     msg.includes('RESOURCE_EXHAUSTED') ||
-    msg.includes('rate limit')
+    msg.includes('quota') ||
+    msg.includes('Quota') ||
+    msg.includes('rate limit') ||
+    msg.includes('Not Found')
   );
 }
 
@@ -145,23 +157,23 @@ async function callWithModelFallback(
 ): Promise<any> {
   let lastError: any = null;
 
-  for (const model of candidateModels) {
+  for (let i = 0; i < candidateModels.length; i++) {
+    const model = candidateModels[i];
     try {
       const response = await ai.models.generateContent({
         model,
         ...requestParams,
       });
+      if (i > 0) {
+        console.log(`[Model Cascaded Successfully] Request fulfilled by fallback model: ${model}`);
+      }
       return response;
     } catch (err: any) {
       lastError = err;
       const errMsg = extractErrorMessage(err);
-      console.warn(`[Model Attempt Failed] Model: ${model}. Error: ${errMsg}`);
+      console.warn(`[Model Attempt Failed] Model: ${model} (${i + 1}/${candidateModels.length}) failed: ${errMsg}. Scaling backwards to next candidate...`);
       
-      // If error is high demand (503), switch immediately to the next candidate model without waiting
-      // If it's a rate limit (429), brief pause before moving to the next model
-      if (err?.code === 429 || errMsg.includes('429') || errMsg.includes('rate limit')) {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-      }
+      // Continue cascading to next model in the priority chain
     }
   }
 
