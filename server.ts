@@ -287,7 +287,10 @@ ${buildAgent1ExemplarGuidance(vignette.track || 'general')}
         systemInstruction,
         temperature: 0.85,
         topP: 0.95,
-        maxOutputTokens: 250,
+        maxOutputTokens: 1500,
+        thinkingConfig: {
+          thinkingBudget: 0,
+        },
       },
     });
 
@@ -299,6 +302,17 @@ ${buildAgent1ExemplarGuidance(vignette.track || 'general')}
     }
 
     let replyText = rawText || `*[Shifts in chair and looks down]* I... I'm just trying to figure out where to start.`;
+
+    // Auto-repair any unclosed somatic brackets if present (e.g. "*[Looks down" -> "*[Looks down]*")
+    if (replyText.includes('*[') && !replyText.includes(']*')) {
+      if (replyText.endsWith('*')) {
+        replyText = replyText.slice(0, -1) + ']*';
+      } else {
+        replyText = replyText + ']*';
+      }
+    } else if (replyText.startsWith('[') && !replyText.includes(']')) {
+      replyText = replyText + ']';
+    }
 
     // Post-process somatic cues to ensure strictly third-person phrasing
     replyText = replyText.replace(/\*\[(.*?)\]\*/g, (_match: string, cueText: string) => {

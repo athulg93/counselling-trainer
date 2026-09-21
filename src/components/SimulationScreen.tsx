@@ -171,22 +171,34 @@ export const SimulationScreen: React.FC<SimulationScreenProps> = ({
 
   const phase = getTurnPhase();
 
-  // Helper to format patient somatic non-verbal cues (e.g. *[looks away]*)
+  // Helper to format patient somatic non-verbal cues (e.g. *[looks away]*, [looks away], or *looks away*)
   const renderPatientMessage = (text: string) => {
-    // Match *[...]* or [...] patterns
-    const parts = text.split(/(\*\[.*?\]\*|\[.*?\])/g);
+    // Normalize unclosed somatic brackets if any
+    let normalized = text;
+    if (normalized.includes('*[') && !normalized.includes(']*')) {
+      normalized = normalized.endsWith('*') ? normalized.slice(0, -1) + ']*' : normalized + ']*';
+    } else if (normalized.startsWith('[') && !normalized.includes(']')) {
+      normalized = normalized + ']';
+    }
+
+    // Match *[...]* or [...] or leading *...* somatic actions
+    const parts = normalized.split(/(\*\[.*?\]\*|\[.*?\]|^\*[^*]+?\*|\s\*[^*]+?\*)/g);
     return (
       <div className="leading-relaxed whitespace-pre-wrap text-stone-800">
         {parts.map((part, i) => {
-          if (
-            (part.startsWith('*[') && part.endsWith(']*')) ||
-            (part.startsWith('[') && part.endsWith(']'))
-          ) {
-            const clean = part.replace(/\*\[|\]\*|\[|\]/g, '').trim();
+          if (!part) return null;
+          const trimmed = part.trim();
+          const isCue =
+            (trimmed.startsWith('*[') && trimmed.endsWith(']*')) ||
+            (trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+            (trimmed.startsWith('*') && trimmed.endsWith('*') && trimmed.length > 2);
+
+          if (isCue) {
+            const clean = trimmed.replace(/^\*\[?|\]?\*?$|^\[|\]$/g, '').trim();
             return (
               <span
                 key={i}
-                className="inline-block my-1 px-2.5 py-0.5 rounded-md bg-stone-100 text-stone-600 font-serif italic text-xs tracking-wide border border-stone-200/60 select-none mr-1"
+                className="inline-block my-0.5 px-2.5 py-0.5 rounded-md bg-stone-100 text-stone-600 font-serif italic text-xs tracking-wide border border-stone-200/60 select-none mr-1.5"
               >
                 *{clean}*
               </span>
