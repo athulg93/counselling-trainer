@@ -735,9 +735,13 @@ Evaluate the interaction with clinical rigor.`;
 // ----------------------------------------------------
 // Local Conversation Database (Stored for Model Training)
 // ----------------------------------------------------
+const IS_PROD = process.env.NODE_ENV === 'production';
 const DB_DIR = path.join(process.cwd(), 'data');
-const DB_FILE = path.join(DB_DIR, 'conversations_db.json');
-const CUSTOM_CASES_FILE = path.join(DB_DIR, 'custom_cases.json');
+const DB_FILE = path.join(DB_DIR, IS_PROD ? 'conversations_db.json' : 'conversations_db_dev.json');
+const CUSTOM_CASES_FILE = path.join(DB_DIR, IS_PROD ? 'custom_cases.json' : 'custom_cases_dev.json');
+
+console.log(`[Database Engine] Active Environment: ${IS_PROD ? 'PRODUCTION' : 'DEVELOPMENT / WORKBENCH PRACTICE'}`);
+console.log(`[Database Engine] Storage files -> DB: ${path.basename(DB_FILE)} | Cases: ${path.basename(CUSTOM_CASES_FILE)}`);
 
 function ensureDbFile() {
   if (!fs.existsSync(DB_DIR)) {

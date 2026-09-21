@@ -52,6 +52,14 @@ export function getDb(): Firestore {
 }
 
 // ---------------------------------------------
+// FIRESTORE ENVIRONMENT & COLLECTION NAMES
+// ---------------------------------------------
+export const IS_DEV = import.meta.env.DEV;
+export const USERS_COL = IS_DEV ? 'users_dev' : 'users';
+export const SESSIONS_COL = IS_DEV ? 'sessions_dev' : 'sessions';
+export const CASES_COL = IS_DEV ? 'cases_dev' : 'cases';
+
+// ---------------------------------------------
 // FIRESTORE SERVICES FOR USERS, SESSIONS & CASES
 // ---------------------------------------------
 
@@ -82,11 +90,11 @@ export async function saveUserToFirestore(user: UserProfile): Promise<void> {
     };
 
     // Save under primary ID (e.g., user_email)
-    await setDoc(doc(db, 'users', userDocId), payload, { merge: true });
+    await setDoc(doc(db, USERS_COL, userDocId), payload, { merge: true });
 
     // Also alias under raw email key if different to guarantee zero-mismatch lookups
     if (userDocId !== rawEmailKey && rawEmailKey.length > 0) {
-      await setDoc(doc(db, 'users', rawEmailKey), payload, { merge: true });
+      await setDoc(doc(db, USERS_COL, rawEmailKey), payload, { merge: true });
     }
   } catch (error) {
     console.error('Firestore saveUser error:', error);
@@ -104,14 +112,14 @@ export async function getUserFromFirestore(emailOrId: string): Promise<UserProfi
     const prefixedKey = `user_${rawKey}`;
 
     // 1. Try raw email document key (e.g. alex_smith_gmail_com)
-    let snap = await getDoc(doc(db, 'users', rawKey));
+    let snap = await getDoc(doc(db, USERS_COL, rawKey));
     if (snap.exists() && snap.data()?.name && snap.data().name.trim().length > 0) {
       const data = snap.data() as UserProfile;
       return { ...data, isPremium: data.isPremium !== false };
     }
 
     // 2. Try prefixed document key (e.g. user_alex_smith_gmail_com)
-    snap = await getDoc(doc(db, 'users', prefixedKey));
+    snap = await getDoc(doc(db, USERS_COL, prefixedKey));
     if (snap.exists() && snap.data()?.name && snap.data().name.trim().length > 0) {
       const data = snap.data() as UserProfile;
       return { ...data, isPremium: data.isPremium !== false };
@@ -119,7 +127,7 @@ export async function getUserFromFirestore(emailOrId: string): Promise<UserProfi
 
     // 3. Try exact input key if passed as ID
     if (cleanInput !== rawKey && cleanInput !== prefixedKey) {
-      snap = await getDoc(doc(db, 'users', cleanInput));
+      snap = await getDoc(doc(db, USERS_COL, cleanInput));
       if (snap.exists() && snap.data()?.name && snap.data().name.trim().length > 0) {
         const data = snap.data() as UserProfile;
         return { ...data, isPremium: data.isPremium !== false };
@@ -128,7 +136,7 @@ export async function getUserFromFirestore(emailOrId: string): Promise<UserProfi
 
     // 4. Fallback: Query by email field
     if (cleanInput.includes('@')) {
-      const usersCol = collection(db, 'users');
+      const usersCol = collection(db, USERS_COL);
       const q = query(usersCol, where('email', '==', cleanInput), limit(1));
       const querySnap = await getDocs(q);
       if (!querySnap.empty) {
@@ -152,7 +160,7 @@ export async function getUserFromFirestore(emailOrId: string): Promise<UserProfi
 export async function saveSessionToFirestore(record: StoredSessionRecord): Promise<void> {
   try {
     const db = getDb();
-    const sessionRef = doc(db, 'sessions', record.id);
+    const sessionRef = doc(db, SESSIONS_COL, record.id);
     await setDoc(
       sessionRef,
       {
@@ -175,7 +183,7 @@ export async function saveSessionToFirestore(record: StoredSessionRecord): Promi
 export async function fetchSessionsFromFirestore(userEmail?: string): Promise<StoredSessionRecord[]> {
   try {
     const db = getDb();
-    const sessionsCol = collection(db, 'sessions');
+    const sessionsCol = collection(db, SESSIONS_COL);
     let q;
     if (userEmail) {
       q = query(sessionsCol, where('userEmail', '==', userEmail.toLowerCase().trim()), limit(100));
@@ -202,7 +210,7 @@ export async function fetchSessionsFromFirestore(userEmail?: string): Promise<St
 export async function saveCaseToFirestore(vignette: CaseVignette): Promise<void> {
   try {
     const db = getDb();
-    const caseRef = doc(db, 'cases', vignette.id);
+    const caseRef = doc(db, CASES_COL, vignette.id);
     await setDoc(
       caseRef,
       {
@@ -222,7 +230,7 @@ export async function saveCaseToFirestore(vignette: CaseVignette): Promise<void>
 export async function fetchCasesFromFirestore(): Promise<CaseVignette[]> {
   try {
     const db = getDb();
-    const casesCol = collection(db, 'cases');
+    const casesCol = collection(db, CASES_COL);
     const snap = await getDocs(casesCol);
     const results: CaseVignette[] = [];
     snap.forEach((d) => {
@@ -245,11 +253,11 @@ export async function deleteUserFromFirestore(emailOrId: string): Promise<boolea
     const cleanEmail = emailOrId.toLowerCase().trim();
 
     // 1. Delete user document
-    const userRef = doc(db, 'users', cleanId);
+    const userRef = doc(db, USERS_COL, cleanId);
     await setDoc(userRef, { deleted: true, deletedAt: serverTimestamp() }, { merge: true });
 
     // 2. Query and delete or mark deleted their sessions
-    const sessionsCol = collection(db, 'sessions');
+    const sessionsCol = collection(db, SESSIONS_COL);
     const q = query(sessionsCol, where('userEmail', '==', cleanEmail), limit(100));
     const snap = await getDocs(q);
     const updates = snap.docs.map((docSnap) =>
@@ -270,7 +278,7 @@ export async function resetUserPasswordInFirestore(email: string, newPassword: s
   try {
     const db = getDb();
     const cleanId = email.toLowerCase().replace(/[^a-z0-9]/g, '_');
-    const userRef = doc(db, 'users', cleanId);
+    const userRef = doc(db, USERS_COL, cleanId);
     await setDoc(
       userRef,
       {
@@ -293,7 +301,7 @@ export async function updateUserAdminRoleInFirestore(email: string, isAdmin: boo
   try {
     const db = getDb();
     const cleanId = email.toLowerCase().replace(/[^a-z0-9]/g, '_');
-    const userRef = doc(db, 'users', cleanId);
+    const userRef = doc(db, USERS_COL, cleanId);
     await setDoc(
       userRef,
       {

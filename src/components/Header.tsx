@@ -51,6 +51,15 @@ export const Header: React.FC<HeaderProps> = ({
                   <span>Admin</span>
                 </span>
               )}
+              {import.meta.env.DEV ? (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200" title="Connected to Practice Workbench DB">
+                  Dev DB
+                </span>
+              ) : (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200" title="Connected to Production DB">
+                  Live DB
+                </span>
+              )}
             </div>
             <p className="text-xs text-stone-500 hidden sm:block">
               Clinical Simulator • Patient Agent & Supervisor Rubric
